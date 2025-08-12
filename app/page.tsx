@@ -6,74 +6,176 @@ import { Button } from "../components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
 import { Badge } from "../components/ui/badge"
 import { Input } from "../components/ui/input"
-import { Sparkles, TrendingUp, Users, Zap, Star, ArrowRight, Search } from 'lucide-react'
+import { Sparkles, TrendingUp, Users, Zap, Star, ArrowRight, Search, icons, Wallet } from 'lucide-react'
 import Link from 'next/link'
-import { CampProvider, CampModal, useAuthState, useAuth } from '@campnetwork/origin/react'
+import { CampProvider, CampModal, useAuthState, useAuth, useConnect, useModal } from '@campnetwork/origin/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-// import { OriginAPI } from '@campnetwork/origin'
+import { Provider } from "@radix-ui/react-tooltip"
+import { info } from "console"
+import { structurePromptDetails, truncate } from "../lib/types"
+import Navbar from "../components/navbar"
+import { ethers, JsonRpcProvider, } from "ethers"; // Note the imports
+import PromptMarketplaceABI from './../abi.json'
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar"
+import Image from "next/image"
 
-const queryClient = new QueryClient()
 
-function HomePage() {
-  const { authenticated, user } = useAuthState()
+
+const CAMP_RPC_URL = 'https://rpc.campnetwork.xyz'
+const CONTRACT_ADDRESS = '0xb9504d2b36f9cf828ab883dda5622bb5530bc861' // Your contract address on Camp Network
+
+
+
+let ethereum: any
+let tx: any
+
+if (typeof window !== 'undefined') {
+  ethereum = (window as any).ethereum
+}
+
+export default function HomePage() {
+
+
+  const { authenticated } = useAuthState()
+  const { isOpen, closeModal, openModal } = useModal()
+  const { connect, disconnect } = useConnect()
+  console.log(authenticated)
   const auth = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
   const [trendingPrompts, setTrendingPrompts] = useState([])
   const [featuredCreators, setFeaturedCreators] = useState([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
-    totalPrompts: 0,
-    activeCreators: 0,
-    totalVolume: 0,
+    totalPrompts: 17,
+    activeCreators: 8,
+    totalVolume: 0.5,
     totalSales: 0
   })
 
+
+
+
+  const getContract = async () => {
+    try {
+      if (!auth.walletAddress) {
+        throw new Error("Wallet not connected");
+      }
+
+      const provider = auth.walletAddress ? new ethers.BrowserProvider(ethereum) : new JsonRpcProvider(CAMP_RPC_URL);
+      const signer = await provider.getSigner(auth.walletAddress ? undefined : auth.walletAddress);
+
+      return new ethers.Contract(
+        CONTRACT_ADDRESS,
+        PromptMarketplaceABI,
+        signer
+      );
+    } catch (error) {
+      console.error("Failed to initialize contract:", error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        if (auth.origin) {
-          // Fetch trending prompts using Origin API
-          const promptsResponse = await auth.origin.getAllTokens()
-          const processedPrompts = promptsResponse.slice(0, 6).map((token, index) => ({
-            id: token.tokenId.toString(),
-            title: token.metadata?.name || `AI Prompt #${token.tokenId}`,
-            description: token.metadata?.description || "Premium AI prompt for creative projects",
-            price: (parseFloat(token.price || "0.05") / 1e18).toFixed(3),
-            creator: token.creator || "Anonymous",
-            tags: token.metadata?.tags || ["ai", "prompt", "creative"],
-            rating: 4.5 + Math.random() * 0.5,
-            sales: Math.floor(Math.random() * 1000) + 100,
-            image: token.metadata?.image || `/placeholder.svg?height=200&width=300&query=ai prompt ${index + 1}`
-          }))
-          setTrendingPrompts(processedPrompts)
+      // try {
+      //   if (auth.origin) {
+      //     // Fetch trending prompts using Origin API
+      //     const contract = await getContract()
+      //     const tx = await contract.getAllPromtsWithDetails()
+      //     const promptsResponse = structurePromptDetails(tx)
+      //     const processedPrompts = promptsResponse.slice(0, 6).map((token, index) => ({
+      //       id: token?.id.toString(),
+      //       title: token.title,
+      //       description: token.description || "Premium AI prompt for creative projects",
+      //       price: (token.price / 1e18).toFixed(3),
+      //       creator: token.creator || "Anonymous",
+      //       tags: token.tags || ["ai", "prompt", "creative"],
+      //       rating: 4.5 + Math.random() * 0.5,
+      //       sales: Math.floor(Math.random() * 1000) + 100,
+      //       image: token.imageUri || `/placeholder.svg?height=200&width=300&query=ai prompt ${index + 1}`
+      //     }))
+      //     setTrendingPrompts(processedPrompts)
 
-          // Get unique creators
-          const creators = [...new Set(processedPrompts.map(p => p.creator))]
-          const processedCreators = creators.slice(0, 3).map((creator, index) => ({
-            name: creator,
-            prompts: Math.floor(Math.random() * 50) + 10,
-            earnings: (Math.random() * 20 + 5).toFixed(1),
-            avatar: `/placeholder.svg?height=60&width=60&query=creator ${index + 1}`,
-            address: `0x${Math.random().toString(16).substr(2, 40)}`
-          }))
-          setFeaturedCreators(processedCreators)
+      //     // Get unique creators
+      //     const creators = [...new Set(processedPrompts.map(p => p.creator))]
+      //     const processedCreators = creators.slice(0, 3).map((creator, index) => ({
+      //       name: creator,
+      //       prompts: Math.floor(Math.random() * 50) + 10,
+      //       earnings: (Math.random() * 20 + 5).toFixed(1),
+      //       avatar: `/placeholder.svg?height=60&width=60&query=creator ${index + 1}`,
+      //       address: `0x${Math.random().toString(16).substr(2, 40)}`
+      //     }))
+      //     setFeaturedCreators(processedCreators)
 
-          // Calculate stats
-          setStats({
-            totalPrompts: promptsResponse.length,
-            activeCreators: creators.length,
-            totalVolume: processedPrompts.reduce((sum, p) => sum + parseFloat(p.price), 0).toFixed(1),
-            totalSales: processedPrompts.reduce((sum, p) => sum + p.sales, 0)
-          })
+      //     // Calculate stats
+      //     setStats({
+      //       totalPrompts: promptsResponse.length,
+      //       activeCreators: creators.length,
+      //       totalVolume: Number(processedPrompts.reduce((sum, p) => sum + parseFloat(p.price), 0).toFixed(1)),
+      //       totalSales: processedPrompts.reduce((sum, p) => sum + p.sales, 0)
+      //     })
+      //   }
+
+      setLoading(false)
+
+      setTrendingPrompts([
+        {
+          id: 1,
+          title: "Anime Character Creator Pro",
+          description: "Generate stunning anime characters with detailed backgrounds and unique personalities",
+          price: "0.05",
+          creator: "MangaMaster",
+          tags: ["anime", "character", "art"],
+          rating: 4.9,
+          sales: 1250,
+          image: "/promt/1.jpeg"
+        },
+        {
+          id: 2,
+          title: "Cyberpunk City Builder",
+          description: "Create futuristic cyberpunk cityscapes with neon lights and flying cars",
+          price: "0.08",
+          creator: "NeonDreamer",
+          tags: ["cyberpunk", "city", "futuristic"],
+          rating: 4.8,
+          sales: 890,
+          image: "/promt/2.png"
+        },
+        {
+          id: 3,
+          title: "Magical Spell Descriptions",
+          description: "Generate detailed magical spell descriptions for fantasy RPGs and stories",
+          price: "0.03",
+          creator: "SpellWeaver",
+          tags: ["magic", "fantasy", "rpg"],
+          rating: 4.7,
+          sales: 2100,
+          image: "/promt/3.png"
         }
-      } catch (error) {
-        console.error("Error fetching data:", error)
-        // Fallback data if API fails
-        setTrendingPrompts([])
-        setFeaturedCreators([])
-      } finally {
-        setLoading(false)
-      }
+      ])
+      setFeaturedCreators([
+        {
+          name: "MangaMaster",
+          prompts: 45,
+          earnings: "12.5",
+          avatar: "/placeholder.svg?height=60&width=60",
+          address: "0x00000000000000000000000000000000000"
+        },
+        {
+          name: "NeonDreamer",
+          prompts: 32,
+          earnings: "8.9",
+          avatar: "/placeholder.svg?height=60&width=60",
+          address: "0x00000000000000000000000000000000000"
+        },
+        {
+          name: "SpellWeaver",
+          prompts: 67,
+          earnings: "15.2",
+          avatar: "/placeholder.svg?height=60&width=60",
+          address: "0x00000000000000000000000000000000000"
+        }
+      ])
     }
 
     fetchData()
@@ -88,49 +190,8 @@ function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {/* Navigation */}
-      <nav className="border-b border-purple-500/20 bg-black/20 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <Sparkles className="h-8 w-8 text-yellow-400" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-400 bg-clip-text text-transparent">
-                PromptVerse
-              </span>
-            </Link>
-            
-            <div className="hidden md:flex items-center space-x-6">
-              <Link href="/marketplace" className="text-white hover:text-yellow-400 transition-colors">
-                Marketplace
-              </Link>
-              <Link href="/create" className="text-white hover:text-yellow-400 transition-colors">
-                Create
-              </Link>
-              <Link href="/chains" className="text-white hover:text-yellow-400 transition-colors">
-                Chains
-              </Link>
-              <Link href="/bounties" className="text-white hover:text-yellow-400 transition-colors">
-                Bounties
-              </Link>
-              <Link href="/dao" className="text-white hover:text-yellow-400 transition-colors">
-                DAO
-              </Link>
-            </div>
+      <Navbar />
 
-            <div className="flex items-center space-x-4">
-              <CampModal />
-              {authenticated && (
-                <Link href="/dashboard">
-                  <Button variant="outline" className="border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black">
-                    Dashboard
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
       <section className="py-20 px-4">
         <div className="container mx-auto text-center">
           <div className="max-w-4xl mx-auto">
@@ -140,7 +201,7 @@ function HomePage() {
             <p className="text-xl text-gray-300 mb-8 leading-relaxed">
               Discover, create, and trade premium AI prompts as NFTs. Join the revolution where creativity meets blockchain technology in a manga-inspired universe!
             </p>
-            
+
             {/* Search Bar */}
             <div className="max-w-2xl mx-auto mb-8">
               <div className="relative">
@@ -152,7 +213,7 @@ function HomePage() {
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   className="pl-12 pr-4 py-4 text-lg bg-black/30 border-purple-500/30 text-white placeholder-gray-400 focus:border-yellow-400"
                 />
-                <Button 
+                <Button
                   onClick={handleSearch}
                   className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-yellow-400 to-pink-400 hover:from-yellow-500 hover:to-pink-500 text-black font-semibold"
                 >
@@ -244,7 +305,7 @@ function HomePage() {
                 <Card key={prompt.id} className="bg-gradient-to-br from-purple-900/50 to-blue-900/50 border-purple-500/30 hover:border-yellow-400/50 transition-all duration-300 hover:scale-105">
                   <div className="relative">
                     <img
-                      src={prompt.image || "/placeholder.svg"}
+                      src={prompt.image || ""}
                       alt={prompt.title}
                       className="w-full h-48 object-cover rounded-t-lg"
                     />
@@ -267,7 +328,7 @@ function HomePage() {
                         </Badge>
                       ))}
                     </div>
-                    
+
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center space-x-2">
                         <Star className="h-4 w-4 text-yellow-400 fill-current" />
@@ -315,11 +376,10 @@ function HomePage() {
             {featuredCreators.map((creator, index) => (
               <Card key={creator.name} className="bg-gradient-to-br from-pink-900/50 to-purple-900/50 border-pink-500/30 hover:border-pink-400/50 transition-all duration-300 hover:scale-105">
                 <CardContent className="p-6 text-center">
-                  <img
-                    src={creator.avatar || "/placeholder.svg"}
-                    alt={creator.name}
-                    className="w-20 h-20 rounded-full mx-auto mb-4 border-4 border-pink-400"
-                  />
+                  <Avatar className="h-20 w-20 mx-auto mb-4">
+                    <AvatarImage src={creator.avatar || "/placeholder.svg"} alt={creator.name} />
+                    <AvatarFallback>{creator.name.slice(0, 2)}</AvatarFallback>
+                  </Avatar>
                   <h3 className="text-xl font-bold text-white mb-2">{creator.name}</h3>
                   <div className="space-y-2 text-gray-300">
                     <div>{creator.prompts} Prompts Created</div>
@@ -412,16 +472,18 @@ function HomePage() {
   )
 }
 
-export default function Home() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <CampProvider 
-        clientId={process.env.NEXT_PUBLIC_CAMP_CLIENT_ID || "your-client-id"}
-        redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
-        environment="production"
-      >
-        <HomePage />
-      </CampProvider>
-    </QueryClientProvider>
-  )
-}
+
+
+// export default function LandingPage() {
+//   return (
+//     <QueryClientProvider client={queryClient}>
+//       <CampProvider 
+//         clientId={process.env.}
+//         redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
+
+//       >
+//         <HomePage />
+//       </CampProvider>
+//     </QueryClientProvider>
+//   )
+// }

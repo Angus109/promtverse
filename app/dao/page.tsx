@@ -10,12 +10,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/ta
 import { Progress } from "../../components/ui/progress"
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select"
-import { Vote, Users, TrendingUp, Clock, CheckCircle, XCircle, Plus, Search, Filter, MessageSquare, ThumbsUp, ThumbsDown, Crown, Gavel } from 'lucide-react'
-import Link from 'next/link'
-import { CampProvider, CampModal, useAuthState, useAuth } from '@campnetwork/origin/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Vote, Users, Clock, CheckCircle,  Search,  MessageSquare, ThumbsUp, ThumbsDown, Crown, Gavel } from 'lucide-react'
+import { CampModal, useAuthState, useAuth } from '@campnetwork/origin/react'
 
-const queryClient = new QueryClient()
+import Navbar from '../../components/navbar'
+import { StatusModal } from '../../components/modal'
+
 
 const proposalTypes = ["Feature Request", "Policy Change", "Treasury", "Moderation", "Partnership", "Other"]
 const proposalStatuses = ["All", "Active", "Passed", "Failed", "Pending"]
@@ -92,7 +92,7 @@ const governanceStats = {
   treasuryBalance: "450.5"
 }
 
-function DAOPage() {
+export default function DAOPage() {
   const { authenticated } = useAuthState()
   const auth = useAuth()
   const [activeTab, setActiveTab] = useState("proposals")
@@ -101,6 +101,7 @@ function DAOPage() {
   const [selectedStatus, setSelectedStatus] = useState("All")
   const [filteredProposals, setFilteredProposals] = useState(activeProposals)
   const [userTokens, setUserTokens] = useState(0)
+  const [modalType, setModalType] = useState<null | "success" | "error" | "warning" | "maintenance">(null);
 
   // Create proposal form state
   const [proposalForm, setProposalForm] = useState({
@@ -115,10 +116,10 @@ function DAOPage() {
   useEffect(() => {
     let filtered = activeProposals.filter(proposal => {
       const matchesSearch = proposal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           proposal.description.toLowerCase().includes(searchQuery.toLowerCase())
+        proposal.description.toLowerCase().includes(searchQuery.toLowerCase())
       const matchesType = selectedType === "All" || proposal.type === selectedType
       const matchesStatus = selectedStatus === "All" || proposal.status === selectedStatus
-      
+
       return matchesSearch && matchesType && matchesStatus
     })
 
@@ -143,53 +144,56 @@ function DAOPage() {
       return
     }
 
-    try {
-      // Prepare proposal metadata
-      const proposalMetadata = {
-        title: proposalForm.title,
-        description: proposalForm.description,
-        type: proposalForm.type,
-        details: proposalForm.details,
-        requestedAmount: proposalForm.requestedAmount,
-        duration: parseInt(proposalForm.duration),
-        proposer: "user-address", // Would be actual user address
-        createdAt: new Date().toISOString(),
-        status: "Pending",
-        votingPeriod: parseInt(proposalForm.duration) * 24 * 60 * 60, // Convert days to seconds
-        type: "dao-proposal"
-      }
+    setModalType('maintenance')
 
-      // License terms for proposal
-      const licenseTerms = {
-        price: BigInt(0), // Free to view
-        duration: parseInt(proposalForm.duration) * 24 * 60 * 60,
-        royaltyBps: 0,
-        paymentToken: "0x0000000000000000000000000000000000000000" as `0x${string}`
-      }
 
-      await auth.origin.registerIpNFT(
-        "proposal",
-        BigInt(Math.floor(Date.now() / 1000) + 3600),
-        licenseTerms,
-        proposalMetadata
-      )
+    // try {
+    //   // Prepare proposal metadata
+    //   const proposalMetadata = {
+    //     title: proposalForm.title,
+    //     description: proposalForm.description,
+    //     type: proposalForm.type,
+    //     details: proposalForm.details,
+    //     requestedAmount: proposalForm.requestedAmount,
+    //     duration: parseInt(proposalForm.duration),
+    //     proposer: "user-address", // Would be actual user address
+    //     createdAt: new Date().toISOString(),
+    //     status: "Pending",
+    //     votingPeriod: parseInt(proposalForm.duration) * 24 * 60 * 60, // Convert days to seconds
 
-      alert("Proposal submitted successfully! It will be reviewed before voting begins.")
-      
-      // Reset form
-      setProposalForm({
-        title: "",
-        description: "",
-        type: "",
-        details: "",
-        requestedAmount: "",
-        duration: "7"
-      })
+    //   }
 
-    } catch (error: any) {
-      console.error("Error creating proposal:", error)
-      alert("Error creating proposal. Please try again.")
-    }
+    //   // License terms for proposal
+    //   const licenseTerms = {
+    //     price: BigInt(0), // Free to view
+    //     duration: parseInt(proposalForm.duration) * 24 * 60 * 60,
+    //     royaltyBps: 0,
+    //     paymentToken: "0x0000000000000000000000000000000000000000" as `0x${string}`
+    //   }
+
+    //   await auth.origin.registerIpNFT(
+    //     "proposal",
+    //     BigInt(Math.floor(Date.now() / 1000) + 3600),
+    //     licenseTerms,
+    //     proposalMetadata
+    //   )
+
+    //   alert("Proposal submitted successfully! It will be reviewed before voting begins.")
+
+    //   // Reset form
+    //   setProposalForm({
+    //     title: "",
+    //     description: "",
+    //     type: "",
+    //     details: "",
+    //     requestedAmount: "",
+    //     duration: "7"
+    //   })
+
+    // } catch (error: any) {
+    //   console.error("Error creating proposal:", error)
+    //   alert("Error creating proposal. Please try again.")
+    // }
   }
 
   const handleVote = async (proposalId: number, support: boolean) => {
@@ -206,9 +210,9 @@ function DAOPage() {
     try {
       // In a real implementation, this would interact with a governance contract
       console.log(`Voting ${support ? 'FOR' : 'AGAINST'} proposal ${proposalId} with ${userTokens} tokens`)
-      
+
       alert(`Vote submitted! You voted ${support ? 'FOR' : 'AGAINST'} with ${userTokens} tokens.`)
-      
+
       // Update local state (in real app, this would come from blockchain)
       setFilteredProposals(prev => prev.map(proposal => {
         if (proposal.id === proposalId) {
@@ -235,60 +239,19 @@ function DAOPage() {
   const getProposalStatus = (proposal: any) => {
     const now = new Date()
     const endDate = new Date(proposal.endDate)
-    
+
     if (now > endDate) {
       return proposal.votesFor > proposal.votesAgainst && proposal.totalVotes >= proposal.quorum ? "Passed" : "Failed"
     }
-    
+
     return proposal.totalVotes >= proposal.quorum ? "Active" : "Pending"
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {/* Navigation */}
-      <nav className="border-b border-purple-500/20 bg-black/20 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="h-8 w-8 bg-gradient-to-r from-yellow-400 to-pink-400 rounded-full flex items-center justify-center">
-                <span className="text-black font-bold text-sm">P</span>
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-400 bg-clip-text text-transparent">
-                PromptVerse
-              </span>
-            </Link>
-            
-            <div className="hidden md:flex items-center space-x-6">
-              <Link href="/marketplace" className="text-white hover:text-yellow-400 transition-colors">
-                Marketplace
-              </Link>
-              <Link href="/create" className="text-white hover:text-yellow-400 transition-colors">
-                Create
-              </Link>
-              <Link href="/chains" className="text-white hover:text-yellow-400 transition-colors">
-                Chains
-              </Link>
-              <Link href="/bounties" className="text-white hover:text-yellow-400 transition-colors">
-                Bounties
-              </Link>
-              <Link href="/dao" className="text-yellow-400 font-semibold">
-                DAO
-              </Link>
-            </div>
 
-            <div className="flex items-center space-x-4">
-              <CampModal />
-              {authenticated && (
-                <Link href="/dashboard">
-                  <Button variant="outline" className="border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black">
-                    Dashboard
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
@@ -385,7 +348,7 @@ function DAOPage() {
                       />
                     </div>
                   </div>
-                  
+
                   <Select value={selectedType} onValueChange={setSelectedType}>
                     <SelectTrigger className="w-48 bg-black/30 border-purple-500/30 text-white">
                       <SelectValue placeholder="Type" />
@@ -419,7 +382,7 @@ function DAOPage() {
                 const forPercentage = proposal.totalVotes > 0 ? (proposal.votesFor / proposal.totalVotes) * 100 : 0
                 const againstPercentage = proposal.totalVotes > 0 ? (proposal.votesAgainst / proposal.totalVotes) * 100 : 0
                 const currentStatus = getProposalStatus(proposal)
-                
+
                 return (
                   <Card key={proposal.id} className="bg-gradient-to-br from-purple-900/50 to-blue-900/50 border-purple-500/30 hover:border-yellow-400/50 transition-all duration-300">
                     <CardContent className="p-6">
@@ -427,12 +390,11 @@ function DAOPage() {
                         <div className="flex-1">
                           <div className="flex items-center space-x-3 mb-2">
                             <h3 className="text-xl font-bold text-white">{proposal.title}</h3>
-                            <Badge className={`${
-                              currentStatus === 'Active' ? 'bg-green-500' :
-                              currentStatus === 'Passed' ? 'bg-blue-500' :
-                              currentStatus === 'Failed' ? 'bg-red-500' :
-                              'bg-yellow-500'
-                            } text-white`}>
+                            <Badge className={`${currentStatus === 'Active' ? 'bg-green-500' :
+                                currentStatus === 'Passed' ? 'bg-blue-500' :
+                                  currentStatus === 'Failed' ? 'bg-red-500' :
+                                    'bg-yellow-500'
+                              } text-white`}>
                               {currentStatus}
                             </Badge>
                             <Badge variant="secondary" className="bg-purple-600/30 text-purple-200">
@@ -440,7 +402,7 @@ function DAOPage() {
                             </Badge>
                           </div>
                           <p className="text-gray-300 mb-4">{proposal.description}</p>
-                          
+
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                             <div>
                               <h4 className="text-white font-semibold mb-3">Voting Progress</h4>
@@ -452,27 +414,27 @@ function DAOPage() {
                                   </div>
                                   <Progress value={Math.min(votingProgress, 100)} className="h-2" />
                                 </div>
-                                
+
                                 <div>
                                   <div className="flex justify-between text-sm mb-1">
                                     <span className="text-green-400">For ({forPercentage.toFixed(1)}%)</span>
                                     <span className="text-green-400">{proposal.votesFor.toLocaleString()}</span>
                                   </div>
                                   <div className="w-full bg-gray-700 rounded-full h-2">
-                                    <div 
+                                    <div
                                       className="bg-green-400 h-2 rounded-full transition-all duration-300"
                                       style={{ width: `${forPercentage}%` }}
                                     />
                                   </div>
                                 </div>
-                                
+
                                 <div>
                                   <div className="flex justify-between text-sm mb-1">
                                     <span className="text-red-400">Against ({againstPercentage.toFixed(1)}%)</span>
                                     <span className="text-red-400">{proposal.votesAgainst.toLocaleString()}</span>
                                   </div>
                                   <div className="w-full bg-gray-700 rounded-full h-2">
-                                    <div 
+                                    <div
                                       className="bg-red-400 h-2 rounded-full transition-all duration-300"
                                       style={{ width: `${againstPercentage}%` }}
                                     />
@@ -480,7 +442,7 @@ function DAOPage() {
                                 </div>
                               </div>
                             </div>
-                            
+
                             <div className="space-y-3">
                               <div className="flex items-center justify-between">
                                 <span className="text-gray-400">Proposer:</span>
@@ -516,6 +478,7 @@ function DAOPage() {
                                 size="sm"
                                 variant="outline"
                                 className="border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-white"
+                                onClick={()=> setModalType("maintenance")}
                               >
                                 <MessageSquare className="h-4 w-4 mr-2" />
                                 Discussion
@@ -524,12 +487,13 @@ function DAOPage() {
                                 size="sm"
                                 variant="outline"
                                 className="border-gray-400 text-gray-400 hover:bg-gray-400 hover:text-white"
+                                onClick={()=> setModalType("maintenance")}
                               >
                                 <Gavel className="h-4 w-4 mr-2" />
                                 View Details
                               </Button>
                             </div>
-                            
+
                             {authenticated && currentStatus === 'Active' && (
                               <div className="flex space-x-2">
                                 <Button
@@ -842,20 +806,34 @@ function DAOPage() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <StatusModal
+          isOpen={!!modalType}
+          type={modalType || "success"}
+          title={
+            modalType === "success"
+              ? "Success!"
+              : modalType === "error"
+                ? "Error!"
+                : modalType === "warning"
+                  ? "Insufficient Funds"
+                  : "System Maintenance"
+          }
+          message={
+            modalType === "success"
+              ? "Your prompt was created successfully."
+              : modalType === "error"
+                ? "Something went wrong. Please try again."
+                : modalType === "warning"
+                  ? "You do not have enough balance to complete this transaction."
+                  : "The system is currently undergoing maintenance. Please check back later."
+          }
+          onClose={() => setModalType(null)}
+        />
+
+
       </div>
     </div>
   )
 }
 
-export default function DAO() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <CampProvider 
-        clientId={process.env.NEXT_PUBLIC_CAMP_CLIENT_ID || "your-client-id"}
-        redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
-      >
-        <DAOPage />
-      </CampProvider>
-    </QueryClientProvider>
-  )
-}

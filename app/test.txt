@@ -1,0 +1,6 @@
+# Camp Network Configuration
+NEXT_PUBLIC_CAMP_CLIENT_ID=fce77d7a-8085-47ca-adff-306a933e76aa
+NEXT_PUBLIC_CAMP_API_KEY=4f1a2c9c-008e-4a2e-8712-055fa04f9ffa
+
+# Optional: Custom redirect URI (defaults to window.location.origin)
+NEXT_PUBLIC_REDIRECT_URI=http://localhost:3000

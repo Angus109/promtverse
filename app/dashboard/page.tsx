@@ -11,6 +11,7 @@ import { DollarSign, TrendingUp, Eye, Star, Edit, Trash2, Share2, Download, Plus
 import Link from 'next/link'
 import { CampProvider, CampModal, useAuthState, useAuth, useSocials, LinkButton } from '@campnetwork/origin/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import Navbar from '../../components/navbar'
 
 const queryClient = new QueryClient()
 
@@ -78,10 +79,10 @@ const recentSales = [
   { id: 4, prompt: "Anime Character Creator Pro", buyer: "MangaArtist", amount: "0.05", date: "2024-01-23" }
 ]
 
-function DashboardPage() {
+export default function DashboardPage() {
   const { authenticated } = useAuthState()
   const auth = useAuth()
-  const { data: socialData, isLoading: socialsLoading } = useSocials()
+  const [socialsLinks, setSocailLink] = useState({})
   const [activeTab, setActiveTab] = useState("overview")
   const [originData, setOriginData] = useState<any>(null)
   const [originUploads, setOriginUploads] = useState<any[]>([])
@@ -93,6 +94,8 @@ function DashboardPage() {
         setOriginData(data)
       }).catch(console.error)
 
+      const socials = auth.getLinkedSocials()
+      setSocailLink(socials)
       // Fetch Origin uploads
       auth.origin.getOriginUploads().then(uploads => {
         setOriginUploads(uploads || [])
@@ -127,47 +130,9 @@ function DashboardPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {/* Navigation */}
-      <nav className="border-b border-purple-500/20 bg-black/20 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="h-8 w-8 bg-gradient-to-r from-yellow-400 to-pink-400 rounded-full flex items-center justify-center">
-                <span className="text-black font-bold text-sm">P</span>
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-400 bg-clip-text text-transparent">
-                PromptVerse
-              </span>
-            </Link>
-            
-            <div className="hidden md:flex items-center space-x-6">
-              <Link href="/marketplace" className="text-white hover:text-yellow-400 transition-colors">
-                Marketplace
-              </Link>
-              <Link href="/create" className="text-white hover:text-yellow-400 transition-colors">
-                Create
-              </Link>
-              <Link href="/chains" className="text-white hover:text-yellow-400 transition-colors">
-                Chains
-              </Link>
-              <Link href="/bounties" className="text-white hover:text-yellow-400 transition-colors">
-                Bounties
-              </Link>
-              <Link href="/dao" className="text-white hover:text-yellow-400 transition-colors">
-                DAO
-              </Link>
-            </div>
 
-            <div className="flex items-center space-x-4">
-              <CampModal />
-              <Link href="/dashboard">
-                <Button className="bg-gradient-to-r from-yellow-400 to-pink-400 text-black font-semibold">
-                  Dashboard
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
+
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
@@ -406,9 +371,8 @@ function DashboardPage() {
                       alt={prompt.title}
                       className="w-full h-40 object-cover rounded-t-lg"
                     />
-                    <Badge className={`absolute top-3 right-3 ${
-                      prompt.status === 'active' ? 'bg-green-500' : 'bg-yellow-500'
-                    } text-white`}>
+                    <Badge className={`absolute top-3 right-3 ${prompt.status === 'active' ? 'bg-green-500' : 'bg-yellow-500'
+                      } text-white`}>
                       {prompt.status}
                     </Badge>
                   </div>
@@ -496,7 +460,7 @@ function DashboardPage() {
                   Link your social accounts to enhance your creator profile and unlock additional features
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              {/* <CardContent>
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex items-center justify-between p-4 bg-black/20 rounded-lg">
@@ -505,7 +469,7 @@ function DashboardPage() {
                         <div>
                           <p className="text-white font-semibold">Twitter</p>
                           <p className="text-gray-400 text-sm">
-                            {socialData?.twitter ? 'Connected' : 'Not connected'}
+                            {socialsLinks.twitter ? 'Connected' : 'Not connected'}
                           </p>
                         </div>
                       </div>
@@ -518,7 +482,7 @@ function DashboardPage() {
                         <div>
                           <p className="text-white font-semibold">Spotify</p>
                           <p className="text-gray-400 text-sm">
-                            {socialData?.spotify ? 'Connected' : 'Not connected'}
+                            {socialsLinks?.spotify ? 'Connected' : 'Not connected'}
                           </p>
                         </div>
                       </div>
@@ -533,7 +497,7 @@ function DashboardPage() {
                         <div>
                           <p className="text-white font-semibold">Discord</p>
                           <p className="text-gray-400 text-sm">
-                            {socialData?.discord ? 'Connected' : 'Not connected'}
+                            {socialsLinks?.discord ? 'Connected' : 'Not connected'}
                           </p>
                         </div>
                       </div>
@@ -548,7 +512,7 @@ function DashboardPage() {
                         <div>
                           <p className="text-white font-semibold">TikTok</p>
                           <p className="text-gray-400 text-sm">
-                            {socialData?.tiktok ? 'Connected' : 'Not connected'}
+                            {socialsLinks?.tiktok ? 'Connected' : 'Not connected'}
                           </p>
                         </div>
                       </div>
@@ -567,7 +531,7 @@ function DashboardPage() {
                     </ul>
                   </div>
                 </div>
-              </CardContent>
+              </CardContent> */}
             </Card>
           </TabsContent>
 
@@ -631,12 +595,4 @@ function DashboardPage() {
   )
 }
 
-export default function Dashboard() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <CampProvider clientId="your-client-id">
-        <DashboardPage />
-      </CampProvider>
-    </QueryClientProvider>
-  )
-}
+

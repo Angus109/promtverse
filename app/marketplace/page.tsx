@@ -13,8 +13,28 @@ import Link from 'next/link'
 import { CampProvider, CampModal, useAuthState, useAuth } from '@campnetwork/origin/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
+import Navbar from '../../components/navbar'
 
-const queryClient = new QueryClient()
+import { ethers, JsonRpcProvider, } from "ethers"; // Note the imports
+import PromptMarketplaceABI from './../../abi.json'
+import { structurePromptDetails } from '../../lib/types'
+
+
+
+const CAMP_RPC_URL = 'https://rpc.campnetwork.xyz'
+const CONTRACT_ADDRESS = '0xb9504d2b36f9cf828ab883dda5622bb5530bc861' // Your contract address on Camp Network
+
+
+
+let ethereum: any
+let tx: any
+
+if (typeof window !== 'undefined') {
+  ethereum = (window as any).ethereum
+}
+
+
+
 
 const categories = ["All", "Art & Design", "Writing", "Environment", "Character", "Music", "Code"]
 const aiModels = ["All", "GPT-4", "DALL-E 3", "Midjourney", "Stable Diffusion", "Claude"]
@@ -28,7 +48,7 @@ const sortOptions = [
   { value: "sales", label: "Most Sales" }
 ]
 
-function MarketplacePage() {
+export default function MarketplacePage() {
   const { authenticated } = useAuthState()
   const auth = useAuth()
   const searchParams = useSearchParams()
@@ -43,51 +63,179 @@ function MarketplacePage() {
   const [filteredPrompts, setFilteredPrompts] = useState([])
   const [loading, setLoading] = useState(true)
 
+
+
+  // Mock marketplace data
+
+
+  const categories = ["All", "Art & Design", "Writing", "Environment", "Character", "Music", "Code"]
+  const aiModels = ["All", "GPT-4", "DALL-E 3", "Midjourney", "Stable Diffusion", "Claude"]
+  const sortOptions = [
+    { value: "trending", label: "Trending" },
+    { value: "newest", label: "Newest" },
+    { value: "oldest", label: "Oldest" },
+    { value: "price-low", label: "Price: Low to High" },
+    { value: "price-high", label: "Price: High to Low" },
+    { value: "rating", label: "Highest Rated" },
+    { value: "sales", label: "Most Sales" }
+  ]
+
+
+  const getContract = async () => {
+    try {
+      if (!auth.walletAddress) {
+        throw new Error("Wallet not connected");
+      }
+
+      const provider = auth.walletAddress ? new ethers.BrowserProvider(ethereum) : new JsonRpcProvider(CAMP_RPC_URL);
+      const signer = await provider.getSigner(auth.walletAddress ? undefined : auth.walletAddress);
+
+      return new ethers.Contract(
+        CONTRACT_ADDRESS,
+        PromptMarketplaceABI,
+        signer
+      );
+    } catch (error) {
+      console.error("Failed to initialize contract:", error);
+      throw error;
+    }
+  };
+
+
   // Fetch prompts from Camp Network
   useEffect(() => {
     const fetchPrompts = async () => {
-      try {
-        if (auth.origin) {
-          const tokensResponse = await auth.origin.getAllTokens()
-          const processedPrompts = tokensResponse.map((token, index) => ({
-            id: token.tokenId.toString(),
-            title: token.metadata?.name || `AI Prompt #${token.tokenId}`,
-            description: token.metadata?.description || "Premium AI prompt for creative projects",
-            price: (parseFloat(token.price || "0.05") / 1e18).toFixed(3),
-            creator: token.creator || "Anonymous",
-            tags: token.metadata?.tags || ["ai", "prompt", "creative"],
-            rating: 4.0 + Math.random() * 1.0,
-            sales: Math.floor(Math.random() * 1000) + 50,
-            category: token.metadata?.category || categories[Math.floor(Math.random() * (categories.length - 1)) + 1],
-            aiModel: aiModels[Math.floor(Math.random() * (aiModels.length - 1)) + 1],
-            createdAt: token.createdAt || new Date().toISOString(),
-            image: token.metadata?.image || `/placeholder.svg?height=200&width=300&query=ai prompt ${index + 1}`,
-            featured: Math.random() > 0.7
-          }))
-          setPrompts(processedPrompts)
+      // try {
+      //   if (auth.origin) {
+      //     const contract = await getContract()
+      //     const tx = await contract.getAllPromtsWithDetails()
+      //     const tokensResponse = structurePromptDetails(tx)
+      //     const processedPrompts = tokensResponse.map((token, index) => ({
+      //       id: token.id.toString(),
+      //       title: token.id || `AI Prompt #${token.id}`,
+      //       description: token.description || "Premium AI prompt for creative projects",
+      //       price: (token.price / 1e18).toFixed(3),
+      //       creator: token.creator || "Anonymous",
+      //       tags: token.tags || ["ai", "prompt", "creative"],
+      //       rating: 4.0 + Math.random() * 1.0,
+      //       sales: Math.floor(Math.random() * 1000) + 50,
+      //       category: token.category || categories[Math.floor(Math.random() * (categories.length - 1)) + 1],
+      //       aiModel: aiModels[Math.floor(Math.random() * (aiModels.length - 1)) + 1],
+      //       createdAt: new Date().toISOString(),
+      //       image: token.imageUri || `/placeholder.svg?height=200&width=300&query=ai prompt ${index + 1}`,
+      //       featured: Math.random() > 0.7
+      //     }))
+      //     setPrompts(processedPrompts)
+      //   }
+      // } catch (error) {
+      //   console.error("Error fetching prompts:", error)
+
+      
+      setPrompts([
+        {
+          id: 1,
+          title: "Anime Character Creator Pro",
+          description: "Generate stunning anime characters with detailed backgrounds and unique personalities. Perfect for manga artists and game developers.",
+          price: "0.05",
+          creator: "MangaMaster",
+          tags: ["anime", "character", "art", "manga"],
+          rating: 4.9,
+          sales: 1250,
+          category: "Art & Design",
+          aiModel: "Midjourney",
+          createdAt: "2024-01-15",
+          image: "/placeholder.svg?height=200&width=300",
+          featured: true
+        },
+        {
+          id: 2,
+          title: "Cyberpunk City Builder",
+          description: "Create futuristic cyberpunk cityscapes with neon lights and flying cars. Ideal for sci-fi projects.",
+          price: "0.08",
+          creator: "NeonDreamer",
+          tags: ["cyberpunk", "city", "futuristic", "neon"],
+          rating: 4.8,
+          sales: 890,
+          category: "Environment",
+          aiModel: "DALL-E 3",
+          createdAt: "2024-01-10",
+          image: "/placeholder.svg?height=200&width=300"
+        },
+        {
+          id: 3,
+          title: "Magical Spell Descriptions",
+          description: "Generate detailed magical spell descriptions for fantasy RPGs and stories. Includes effects and lore.",
+          price: "0.03",
+          creator: "SpellWeaver",
+          tags: ["magic", "fantasy", "rpg", "spells"],
+          rating: 4.7,
+          sales: 2100,
+          category: "Writing",
+          aiModel: "GPT-4",
+          createdAt: "2024-01-20",
+          image: "/placeholder.svg?height=200&width=300"
+        },
+        {
+          id: 4,
+          title: "Mecha Robot Designer",
+          description: "Design powerful mecha robots with intricate details and weaponry. Perfect for anime and gaming projects.",
+          price: "0.12",
+          creator: "RobotMaster",
+          tags: ["mecha", "robot", "anime", "sci-fi"],
+          rating: 4.9,
+          sales: 650,
+          category: "Art & Design",
+          aiModel: "Midjourney",
+          createdAt: "2024-01-08",
+          image: "/placeholder.svg?height=200&width=300"
+        },
+        {
+          id: 5,
+          title: "Fantasy Landscape Generator",
+          description: "Create breathtaking fantasy landscapes with mystical elements and magical atmospheres.",
+          price: "0.06",
+          creator: "LandscapeMage",
+          tags: ["fantasy", "landscape", "nature", "magic"],
+          rating: 4.6,
+          sales: 1100,
+          category: "Environment",
+          aiModel: "Stable Diffusion",
+          createdAt: "2024-01-12",
+          image: "/placeholder.svg?height=200&width=300"
+        },
+        {
+          id: 6,
+          title: "Dialogue System Creator",
+          description: "Generate engaging dialogue for NPCs and characters in games and interactive stories.",
+          price: "0.04",
+          creator: "DialogueCraft",
+          tags: ["dialogue", "npc", "game", "story"],
+          rating: 4.5,
+          sales: 800,
+          category: "Writing",
+          aiModel: "Claude",
+          createdAt: "2024-01-18",
+          image: "/placeholder.svg?height=200&width=300"
         }
-      } catch (error) {
-        console.error("Error fetching prompts:", error)
-        setPrompts([])
-      } finally {
-        setLoading(false)
-      }
+      ])
+
     }
 
     fetchPrompts()
+    setLoading(false)
   }, [auth.origin])
 
   // Filter and sort prompts
   useEffect(() => {
     let filtered = prompts.filter(prompt => {
       const matchesSearch = prompt.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           prompt.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           prompt.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-      
+        prompt.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        prompt.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
+
       const matchesCategory = selectedCategory === "All" || prompt.category === selectedCategory
       const matchesAiModel = selectedAiModel === "All" || prompt.aiModel === selectedAiModel
       const matchesPrice = parseFloat(prompt.price) >= priceRange[0] && parseFloat(prompt.price) <= priceRange[1]
-      
+
       return matchesSearch && matchesCategory && matchesAiModel && matchesPrice
     })
 
@@ -118,47 +266,7 @@ function MarketplacePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {/* Navigation */}
-      <nav className="border-b border-purple-500/20 bg-black/20 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <Sparkles className="h-8 w-8 text-yellow-400" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-400 bg-clip-text text-transparent">
-                PromptVerse
-              </span>
-            </Link>
-            
-            <div className="hidden md:flex items-center space-x-6">
-              <Link href="/marketplace" className="text-yellow-400 font-semibold">
-                Marketplace
-              </Link>
-              <Link href="/create" className="text-white hover:text-yellow-400 transition-colors">
-                Create
-              </Link>
-              <Link href="/chains" className="text-white hover:text-yellow-400 transition-colors">
-                Chains
-              </Link>
-              <Link href="/bounties" className="text-white hover:text-yellow-400 transition-colors">
-                Bounties
-              </Link>
-              <Link href="/dao" className="text-white hover:text-yellow-400 transition-colors">
-                DAO
-              </Link>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <CampModal />
-              {authenticated && (
-                <Link href="/dashboard">
-                  <Button variant="outline" className="border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black">
-                    Dashboard
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
@@ -351,7 +459,7 @@ function MarketplacePage() {
                           </Badge>
                         ))}
                       </div>
-                      
+
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center space-x-2">
                           <Star className="h-4 w-4 text-yellow-400 fill-current" />
@@ -394,7 +502,7 @@ function MarketplacePage() {
                             </div>
                             <div className="text-2xl font-bold text-yellow-400">{prompt.price} ETH</div>
                           </div>
-                          
+
                           <div className="flex flex-wrap gap-2 mb-3">
                             {prompt.tags.map((tag) => (
                               <Badge key={tag} variant="secondary" className="bg-purple-600/30 text-purple-200">
@@ -431,14 +539,14 @@ function MarketplacePage() {
             {filteredPrompts.length === 0 && !loading && (
               <div className="text-center py-12">
                 <div className="text-gray-400 text-lg mb-4">No prompts found matching your criteria</div>
-                <Button 
+                <Button
                   onClick={() => {
                     setSearchQuery("")
                     setSelectedCategory("All")
                     setSelectedAiModel("All")
                     setPriceRange([0, 1])
                   }}
-                  variant="outline" 
+                  variant="outline"
                   className="border-purple-400 text-purple-400 hover:bg-purple-400 hover:text-white"
                 >
                   Clear Filters
@@ -452,16 +560,4 @@ function MarketplacePage() {
   )
 }
 
-export default function Marketplace() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <CampProvider 
-        clientId={process.env.NEXT_PUBLIC_CAMP_CLIENT_ID || "your-client-id"}
-        redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
-        environment="production"
-      >
-        <MarketplacePage />
-      </CampProvider>
-    </QueryClientProvider>
-  )
-}
+

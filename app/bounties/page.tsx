@@ -10,13 +10,10 @@ import { Badge } from "../../components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select"
-import { Trophy, Clock, Users, DollarSign, Plus, Search, Filter, Star, Upload, Send, Eye, Award, Target } from 'lucide-react'
-import Link from 'next/link'
-import { CampProvider, CampModal, useAuthState, useAuth } from '@campnetwork/origin/react'
-
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-
-const queryClient = new QueryClient()
+import { Trophy, Users, DollarSign, Plus, Search,  Upload, Send, Eye, Award, Target } from 'lucide-react'
+import { CampModal, useAuthState, useAuth } from '@campnetwork/origin/react'
+import Navbar from '../../components/navbar'
+import { StatusModal } from '../../components/modal'
 
 const bountyCategories = ["All", "Art & Design", "Writing", "Code", "Music", "Video", "Other"]
 const bountyStatuses = ["All", "Open", "In Progress", "Completed", "Expired"]
@@ -108,7 +105,7 @@ const mySubmissions = [
   }
 ]
 
-function BountiesPage() {
+export default function BountiesPage() {
   const { authenticated } = useAuthState()
   const auth = useAuth()
   const [activeTab, setActiveTab] = useState("browse")
@@ -116,6 +113,7 @@ function BountiesPage() {
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [selectedStatus, setSelectedStatus] = useState("All")
   const [filteredBounties, setFilteredBounties] = useState(activeBounties)
+  const [modalType, setModalType] = useState<null | "success" | "error" | "warning" | "maintenance">(null);
 
   // Create bounty form state
   const [bountyForm, setBountyForm] = useState({
@@ -153,51 +151,54 @@ function BountiesPage() {
       return
     }
 
-    try {
-      // Prepare bounty metadata
-      const bountyMetadata = {
-        title: bountyForm.title,
-        description: bountyForm.description,
-        category: bountyForm.category,
-        reward: bountyForm.reward,
-        deadline: bountyForm.deadline,
-        requirements: bountyForm.requirements.filter(req => req.trim()),
-        createdAt: new Date().toISOString(),
-        type: "bounty"
-      }
 
-      // License terms for bounty
-      const licenseTerms = {
-        price: BigInt(Math.floor(parseFloat(bountyForm.reward) * 1e18)),
-        duration: Math.floor((new Date(bountyForm.deadline).getTime() - Date.now()) / 1000),
-        royaltyBps: 0, // No royalties for bounties
-        paymentToken: "0x0000000000000000000000000000000000000000" as `0x${string}`
-      }
+    setModalType('maintenance')
 
-      await auth.origin.registerIpNFT(
-        "bounty",
-        BigInt(Math.floor(Date.now() / 1000) + 3600),
-        licenseTerms,
-        bountyMetadata
-      )
+    // try {
+    //   // Prepare bounty metadata
+    //   const bountyMetadata = {
+    //     title: bountyForm.title,
+    //     description: bountyForm.description,
+    //     category: bountyForm.category,
+    //     reward: bountyForm.reward,
+    //     deadline: bountyForm.deadline,
+    //     requirements: bountyForm.requirements.filter(req => req.trim()),
+    //     createdAt: new Date().toISOString(),
+    //     type: "bounty"
+    //   }
 
-      alert("Bounty created successfully!")
+    //   // License terms for bounty
+    //   const licenseTerms = {
+    //     price: BigInt(Math.floor(parseFloat(bountyForm.reward) * 1e18)),
+    //     duration: Math.floor((new Date(bountyForm.deadline).getTime() - Date.now()) / 1000),
+    //     royaltyBps: 0, // No royalties for bounties
+    //     paymentToken: "0x0000000000000000000000000000000000000000" as `0x${string}`
+    //   }
 
-      // Reset form
-      setBountyForm({
-        title: "",
-        description: "",
-        category: "",
-        reward: "",
-        deadline: "",
-        requirements: [""]
-      })
-      setActiveTab("browse")
+    //   await auth.origin.registerIpNFT(
+    //     "bounty",
+    //     BigInt(Math.floor(Date.now() / 1000) + 3600),
+    //     licenseTerms,
+    //     bountyMetadata
+    //   )
 
-    } catch (error: any) {
-      console.error("Error creating bounty:", error)
-      alert("Error creating bounty. Please try again.")
-    }
+    //   alert("Bounty created successfully!")
+
+    //   // Reset form
+    //   setBountyForm({
+    //     title: "",
+    //     description: "",
+    //     category: "",
+    //     reward: "",
+    //     deadline: "",
+    //     requirements: [""]
+    //   })
+    //   setActiveTab("browse")
+
+    // } catch (error: any) {
+    //   console.error("Error creating bounty:", error)
+    //   alert("Error creating bounty. Please try again.")
+    // }
   }
 
   const handleSubmitToBounty = async () => {
@@ -206,45 +207,47 @@ function BountiesPage() {
       return
     }
 
-    try {
-      // Prepare submission metadata
-      const submissionMetadata = {
-        bountyId: submissionForm.bountyId,
-        description: submissionForm.description,
-        files: submissionForm.files.map(f => f.name),
-        submittedAt: new Date().toISOString(),
-        type: "bounty-submission"
-      }
+    setModalType("maintenance")
 
-      // If files are included, mint with file
-      if (submissionForm.files.length > 0) {
-        const licenseTerms = {
-          price: BigInt(0), // Free submission
-          duration: 365 * 24 * 60 * 60,
-          royaltyBps: 0,
-          paymentToken: "0x0000000000000000000000000000000000000000" as `0x${string}`
-        }
+    // try {
+    //   // Prepare submission metadata
+    //   const submissionMetadata = {
+    //     bountyId: submissionForm.bountyId,
+    //     description: submissionForm.description,
+    //     files: submissionForm.files.map(f => f.name),
+    //     submittedAt: new Date().toISOString(),
+    //     type: "bounty-submission"
+    //   }
 
-        await auth.origin.mintFile(
-          submissionForm.files[0],
-          submissionMetadata,
-          licenseTerms
-        )
-      }
+    //   // If files are included, mint with file
+    //   if (submissionForm.files.length > 0) {
+    //     const licenseTerms = {
+    //       price: BigInt(0), // Free submission
+    //       duration: 365 * 24 * 60 * 60,
+    //       royaltyBps: 0,
+    //       paymentToken: "0x0000000000000000000000000000000000000000" as `0x${string}`
+    //     }
 
-      alert("Submission sent successfully!")
+    //     await auth.origin.mintFile(
+    //       submissionForm.files[0],
+    //       submissionMetadata,
+    //       licenseTerms
+    //     )
+    //   }
 
-      // Reset form
-      setSubmissionForm({
-        bountyId: null,
-        description: "",
-        files: []
-      })
+    //   alert("Submission sent successfully!")
 
-    } catch (error: any) {
-      console.error("Error submitting to bounty:", error)
-      alert("Error submitting to bounty. Please try again.")
-    }
+    //   // Reset form
+    //   setSubmissionForm({
+    //     bountyId: null,
+    //     description: "",
+    //     files: []
+    //   })
+
+    // } catch (error: any) {
+    //   console.error("Error submitting to bounty:", error)
+    //   alert("Error submitting to bounty. Please try again.")
+    // }
   }
 
   const addRequirement = () => {
@@ -271,49 +274,8 @@ function BountiesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {/* Navigation */}
-      <nav className="border-b border-purple-500/20 bg-black/20 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="h-8 w-8 bg-gradient-to-r from-yellow-400 to-pink-400 rounded-full flex items-center justify-center">
-                <span className="text-black font-bold text-sm">P</span>
-              </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-400 bg-clip-text text-transparent">
-                PromptVerse
-              </span>
-            </Link>
 
-            <div className="hidden md:flex items-center space-x-6">
-              <Link href="/marketplace" className="text-white hover:text-yellow-400 transition-colors">
-                Marketplace
-              </Link>
-              <Link href="/create" className="text-white hover:text-yellow-400 transition-colors">
-                Create
-              </Link>
-              <Link href="/chains" className="text-white hover:text-yellow-400 transition-colors">
-                Chains
-              </Link>
-              <Link href="/bounties" className="text-yellow-400 font-semibold">
-                Bounties
-              </Link>
-              <Link href="/dao" className="text-white hover:text-yellow-400 transition-colors">
-                DAO
-              </Link>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <CampModal />
-              {authenticated && (
-                <Link href="/dashboard">
-                  <Button variant="outline" className="border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black">
-                    Dashboard
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
@@ -418,8 +380,8 @@ function BountiesPage() {
                         <div className="flex items-center space-x-3 mb-2">
                           <h3 className="text-xl font-bold text-white">{bounty.title}</h3>
                           <Badge className={`${bounty.status === 'Open' ? 'bg-green-500' :
-                              bounty.status === 'In Progress' ? 'bg-yellow-500' :
-                                'bg-gray-500'
+                            bounty.status === 'In Progress' ? 'bg-yellow-500' :
+                              'bg-gray-500'
                             } text-white`}>
                             {bounty.status}
                           </Badge>
@@ -777,8 +739,8 @@ function BountiesPage() {
                               <p className="text-gray-400 text-sm">Submitted on {new Date(submission.submittedAt).toLocaleDateString()}</p>
                             </div>
                             <Badge className={`${submission.status === 'Accepted' ? 'bg-green-500' :
-                                submission.status === 'Under Review' ? 'bg-yellow-500' :
-                                  'bg-red-500'
+                              submission.status === 'Under Review' ? 'bg-yellow-500' :
+                                'bg-red-500'
                               } text-white`}>
                               {submission.status}
                             </Badge>
@@ -836,20 +798,31 @@ function BountiesPage() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <StatusModal
+          isOpen={!!modalType}
+          type={modalType || "success"}
+          title={
+            modalType === "success"
+              ? "Success!"
+              : modalType === "error"
+                ? "Error!"
+                : modalType === "warning"
+                  ? "Insufficient Funds"
+                  : "System Maintenance"
+          }
+          message={
+            modalType === "success"
+              ? "Your prompt was created successfully."
+              : modalType === "error"
+                ? "Something went wrong. Please try again."
+                : modalType === "warning"
+                  ? "You do not have enough balance to complete this transaction."
+                  : "The system is currently undergoing maintenance. Please check back later."
+          }
+          onClose={() => setModalType(null)}
+        />
       </div>
     </div>
-  )
-}
-
-export default function Bounties() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <CampProvider
-        clientId={process.env.NEXT_PUBLIC_CAMP_CLIENT_ID || "your-client-id"}
-        redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
-      >
-        <BountiesPage />
-      </CampProvider>
-    </QueryClientProvider>
   )
 }

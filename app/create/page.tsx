@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from "../../components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card"
 import { Input } from "../../components/ui/input"
@@ -14,16 +14,111 @@ import { Sparkles, Upload, Eye, DollarSign, Tag, Wand2, AlertCircle, CheckCircle
 import Link from 'next/link'
 import { CampProvider, CampModal, useAuthState, useAuth } from '@campnetwork/origin/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { useProvider } from '@campnetwork/origin/react'
+import { CreatorRegistrationModal } from '../../components/creator'
+import { BrowserProvider, Contract, ethers, JsonRpcProvider, } from "ethers"; // Note the imports
+import PromptMarketplaceABI from './../../abi.json'
+import Navbar from '../../components/navbar'
+import { StatusModal } from '../../components/modal'
+import { formatDate } from '../../lib/types'
 
-const queryClient = new QueryClient()
+
+
+
+const CAMP_RPC_URL = 'https://rpc.campnetwork.xyz'
+const CONTRACT_ADDRESS = '0xb9504d2b36f9cf828ab883dda5622bb5530bc861' // Your contract address on Camp Network
+
+
+
+let ethereum: any
+let tx: any
+
+if (typeof window !== 'undefined') {
+  ethereum = (window as any).ethereum
+}
+
+
+
 
 const categories = ["Art & Design", "Writing", "Environment", "Character", "Music", "Code", "Business", "Education"]
 const aiModels = ["GPT-4", "DALL-E 3", "Midjourney", "Stable Diffusion", "Claude", "Gemini", "Other"]
 
-function CreatePromptPage() {
-  const { authenticated, user } = useAuthState()
+export default function CreatePromptPage() {
+  const { authenticated } = useAuthState()
   const auth = useAuth()
-  
+  const [walletProvider, setwalletProvider] = useState<any>(null);
+
+  const getContract = async () => {
+  try {
+    if (!auth.walletAddress) {
+      throw new Error("Wallet not connected");
+    }
+
+    let provider;
+    if (auth.walletAddress) {
+      const eip1193Provider = walletProvider || ethereum;
+      if (!eip1193Provider?.request) {
+        throw new Error("No valid EIP-1193 provider found");
+      }
+      provider = new ethers.BrowserProvider(eip1193Provider);
+    } else {
+      provider = new JsonRpcProvider(CAMP_RPC_URL);
+    }
+
+    const signer = await provider.getSigner();
+    return new ethers.Contract(CONTRACT_ADDRESS, PromptMarketplaceABI, signer);
+
+  } catch (error) {
+    console.error("Failed to initialize contract:", error);
+    throw error;
+  }
+};
+
+
+
+
+
+  useEffect(() => {
+    const handleProvider = (data: any) => {
+      console.log(data)
+      setwalletProvider(data?.provider)
+    }
+    const unsubscribe = () => auth.on('provider', handleProvider)
+
+    return () => {
+      unsubscribe()
+    }
+
+  }, [])
+
+  // useEffect(() => {
+  //   if (authenticated) {
+  //     async function checkuser() {
+  //       const contract = await getContract()
+
+  //       const isUserExist = await contract.doesCreatorExist(walletAddress)
+  //       console.log("is user exist:", isUserExist)
+
+  //       if (!isUserExist) {
+  //         setShowModal(true)
+  //       }
+  //     }
+
+  //     checkuser()
+  //   }
+  // }, [authenticated])
+
+
+
+  const [showModal, setShowModal] = useState(false)
+  const [modalType, setModalType] = useState<null | "success" | "error" | "warning" | "maintenance">(null);
+
+  // auth.on("provider", (data: any) => {
+  //   console.log(data)
+  //   setwalletProvider(data.provider)
+  // })
+
+
   // Form state
   const [formData, setFormData] = useState({
     title: '',
@@ -35,12 +130,30 @@ function CreatePromptPage() {
     tags: [],
     image: null
   })
-  
+
   const [currentTag, setCurrentTag] = useState('')
   const [isCreating, setIsCreating] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState({
+    title: '',
+    description: '',
+    promptText: '',
+    category: '',
+    aiModel: '',
+    price: '',
+    tags: '',
+    image: null
+  })
   const [success, setSuccess] = useState(false)
+  const [walletAddress, setWalletAdress] = useState('')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+
+
+
+
+
+
+
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -72,25 +185,36 @@ function CreatePromptPage() {
     if (!file) return
 
     try {
-      if (auth.blob) {
-        setUploadProgress(10)
-        
-        // Upload to Camp Network Blob storage
-        const uploadResult = await auth.blob.upload(file)
-        
-        setUploadProgress(100)
-        setFormData(prev => ({ ...prev, image: uploadResult.url }))
-        
-        setTimeout(() => setUploadProgress(0), 1000)
-      }
+
+      setUploadProgress(10)
+
+      setSelectedFile(file)
+
+      setFormData(prev => ({ ...prev, image: URL.createObjectURL(file) }))
+
+      setUploadProgress(100)
+
+      setTimeout(() => setUploadProgress(0), 1000)
+
     } catch (error) {
       console.error('Image upload failed:', error)
       setErrors(prev => ({ ...prev, image: 'Failed to upload image' }))
     }
   }
 
+  interface newErrors {
+    title: string,
+    description: string,
+    promptText: string,
+    category: string,
+    aiModel: string,
+    price: string,
+    tags: string,
+    image: string
+  }
+
   const validateForm = () => {
-    const newErrors = {}
+    const newErrors = {} as newErrors
 
     if (!formData.title.trim()) newErrors.title = 'Title is required'
     if (!formData.description.trim()) newErrors.description = 'Description is required'
@@ -106,7 +230,7 @@ function CreatePromptPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!authenticated) {
       alert('Please connect your wallet first')
       return
@@ -114,67 +238,99 @@ function CreatePromptPage() {
 
     if (!validateForm()) return
 
-    setIsCreating(true)
-    
-    try {
-      // Create metadata object
-      const metadata = {
-        name: formData.title,
-        description: formData.description,
-        image: formData.image,
-        category: formData.category,
-        aiModel: formData.aiModel,
-        tags: formData.tags,
-        promptText: formData.promptText,
-        creator: user?.address || 'Anonymous'
-      }
+    setModalType("maintenance")
 
-      // Upload metadata to IPFS via Camp Network
-      let metadataUri = ''
-      if (auth.blob) {
-        const metadataBlob = new Blob([JSON.stringify(metadata)], { type: 'application/json' })
-        const metadataFile = new File([metadataBlob], 'metadata.json', { type: 'application/json' })
-        const metadataUpload = await auth.blob.upload(metadataFile)
-        metadataUri = metadataUpload.url
-      }
 
-      // Mint NFT using Origin API
-      if (auth.origin) {
-        const priceInWei = (parseFloat(formData.price) * 1e18).toString()
-        
-        const mintResult = await auth.origin.mint({
-          to: user?.address,
-          price: priceInWei,
-          metadataURI: metadataUri,
-          royalty: 1000, // 10% royalty
-        })
 
-        console.log('Mint successful:', mintResult)
-        setSuccess(true)
-        
-        // Reset form
-        setFormData({
-          title: '',
-          description: '',
-          promptText: '',
-          category: '',
-          aiModel: '',
-          price: '',
-          tags: [],
-          image: null
-        })
 
-        // Redirect to marketplace after success
-        setTimeout(() => {
-          window.location.href = '/marketplace'
-        }, 3000)
-      }
-    } catch (error) {
-      console.error('Failed to create prompt:', error)
-      alert('Failed to create prompt. Please try again.')
-    } finally {
-      setIsCreating(false)
-    }
+    // setIsCreating(true)
+
+    // try {
+    //   // Create metadata object
+    //   const metadata = {
+    //     name: formData.title,
+    //     description: formData.description,
+    //     image: formData.image,
+    //     category: formData.category,
+    //     aiModel: formData.aiModel,
+    //     tags: formData.tags,
+    //     promptText: formData.promptText,
+    //     creator: auth.walletAddress || 'Anonymous',
+    //     createdAt: new Date().toString()
+    //   }
+
+    //   if (!selectedFile) {
+    //     throw new Error("No file selected")
+    //   }
+
+
+    //   //Define licence
+    //   const license = {
+    //     price: BigInt(Math.floor(parseFloat(formData.price) * 1e18)),
+    //     duration: 0,
+    //     royalty: 1000,
+    //     paymentToken: "0x000000000000000000000000000000000000000000" as const,
+    //     royaltyBps: 10
+    //   }
+
+
+
+    //   // Mint NFT using Origin API
+    //   if (auth.origin) {
+
+    //     const mintResult = await auth.origin.mintFile(
+    //       selectedFile,
+    //       metadata,
+    //       license,
+    //       undefined
+    //     )
+
+    //     console.log('Mint successful:', mintResult)
+    //     setSuccess(true)
+
+    //     if (mintResult) {
+    //       const contract = await getContract()
+    //       const tx = await contract.storePrompt({
+    //         tokenId: mintResult,
+    //         title: formData.title,
+    //         description: formData.description,
+    //         promtText: formData.promptText,
+    //         category: formData.category,
+    //         aiModel: formData.aiModel,
+    //         imageUri: formData.image,
+    //         creator: auth.walletAddress,
+    //         price: formData.price,
+    //         tags: formData.tags
+    //       })
+
+    //       await tx.wait()
+
+    //       console.log(tx)
+    //     }
+
+    //     // Reset form
+    //     // setFormData({
+    //     //   title: '',
+    //     //   description: '',
+    //     //   promptText: '',
+    //     //   category: '',
+    //     //   aiModel: '',
+    //     //   price: '',
+    //     //   tags: [],
+    //     //   image: null
+    //     // })
+
+    //     // // Redirect to marketplace after success
+    //     // setTimeout(() => {
+    //     //   window.location.href = '/marketplace'
+    //     // }, 3000)
+    //   }
+    // } catch (error) {
+    //   console.error('Failed to create prompt:', error)
+    //   setModalType("error")
+    // } finally {
+    //   setIsCreating(false)
+    // }
   }
 
   if (!authenticated) {
@@ -204,45 +360,7 @@ function CreatePromptPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {/* Navigation */}
-      <nav className="border-b border-purple-500/20 bg-black/20 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <Sparkles className="h-8 w-8 text-yellow-400" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-400 bg-clip-text text-transparent">
-                PromptVerse
-              </span>
-            </Link>
-            
-            <div className="hidden md:flex items-center space-x-6">
-              <Link href="/marketplace" className="text-white hover:text-yellow-400 transition-colors">
-                Marketplace
-              </Link>
-              <Link href="/create" className="text-yellow-400 font-semibold">
-                Create
-              </Link>
-              <Link href="/chains" className="text-white hover:text-yellow-400 transition-colors">
-                Chains
-              </Link>
-              <Link href="/bounties" className="text-white hover:text-yellow-400 transition-colors">
-                Bounties
-              </Link>
-              <Link href="/dao" className="text-white hover:text-yellow-400 transition-colors">
-                DAO
-              </Link>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <CampModal />
-              <Link href="/dashboard">
-                <Button variant="outline" className="border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black">
-                  Dashboard
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
@@ -539,7 +657,7 @@ function CreatePromptPage() {
                   </div>
                   <div className="flex justify-between items-center">
                     <div className="text-gray-400 text-sm">
-                      by {user?.username || 'You'}
+                      by {auth.walletAddress || 'You'}
                     </div>
                     <div className="text-yellow-400 font-bold">
                       {formData.price || '0.00'} ETH
@@ -604,21 +722,44 @@ function CreatePromptPage() {
             </Card>
           </div>
         </div>
+
+        <CreatorRegistrationModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          contract={getContract}
+        />
+
+
+
+        <StatusModal
+          isOpen={!!modalType}
+          type={modalType || "success"}
+          title={
+            modalType === "success"
+              ? "Success!"
+              : modalType === "error"
+                ? "Error!"
+                : modalType === "warning"
+                  ? "Insufficient Funds"
+                  : "System Maintenance"
+          }
+          message={
+            modalType === "success"
+              ? "Your prompt was created successfully."
+              : modalType === "error"
+                ? "Something went wrong. Please try again."
+                : modalType === "warning"
+                  ? "You do not have enough balance to complete this transaction."
+                  : "The system is currently undergoing maintenance. Please check back later."
+          }
+          onClose={() => setModalType(null)}
+        />
+
+
+
+
       </div>
     </div>
   )
 }
 
-export default function CreatePrompt() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <CampProvider 
-        clientId={process.env.NEXT_PUBLIC_CAMP_CLIENT_ID || "your-client-id"}
-        redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
-        environment="production"
-      >
-        <CreatePromptPage />
-      </CampProvider>
-    </QueryClientProvider>
-  )
-}

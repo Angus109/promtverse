@@ -6,18 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../..
 import { Badge } from "../../components/ui/badge"
 import { Input } from "../../components/ui/input"
 import { Textarea } from "../../components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs"
-import { Progress } from "../../components/ui/progress"
-import { Link2, Plus, Play, Pause, RotateCcw, Save, Share2, Eye, Users, Star, Zap, Sparkles, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react'
-import Link from 'next/link'
-import { CampProvider, CampModal, useAuthState, useAuth } from '@campnetwork/origin/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Link2, Plus, Play,Save, Share2, Eye, Users, Star, Zap } from 'lucide-react'
 
-const queryClient = new QueryClient()
+import { CampModal, useAuthState, useAuth } from '@campnetwork/origin/react'
+import Navbar from '../../components/navbar'
+import { StatusModal } from '../../components/modal'
 
-function ChainsPage() {
-  const { authenticated, user, use } = useAuthState()
+
+
+export default function ChainsPage() {
+  const { authenticated, } = useAuthState()
   const auth = useAuth()
   const [chains, setChains] = useState([])
   const [myChains, setMyChains] = useState([])
@@ -29,6 +28,7 @@ function ChainsPage() {
     description: '',
     prompts: [{ id: 1, content: '', order: 1 }]
   })
+  const [modalType, setModalType] = useState<null | "success" | "error" | "warning" | "maintenance">(null);
 
   useEffect(() => {
     const fetchChains = async () => {
@@ -144,7 +144,7 @@ function ChainsPage() {
   const updatePromptContent = (promptId, content) => {
     setNewChain(prev => ({
       ...prev,
-      prompts: prev.prompts.map(p => 
+      prompts: prev.prompts.map(p =>
         p.id === promptId ? { ...p, content } : p
       )
     }))
@@ -156,81 +156,43 @@ function ChainsPage() {
       return
     }
 
-    setIsCreating(true)
-    try {
-      // In a real app, you'd save this to the blockchain/database
-      const chainData = {
-        ...newChain,
-        id: Date.now(),
-        creator: user?.username || 'Anonymous',
-        rating: 0,
-        uses: 0,
-        price: "0.00",
-        isPublic: false
-      }
+    setModalType('maintenance')
 
-      setMyChains(prev => [...prev, chainData])
-      
-      // Reset form
-      setNewChain({
-        title: '',
-        description: '',
-        prompts: [{ id: 1, content: '', order: 1 }]
-      })
+    // setIsCreating(true)
+    // try {
 
-      alert("Chain created successfully!")
-    } catch (error) {
-      console.error("Error creating chain:", error)
-      alert("Failed to create chain. Please try again.")
-    } finally {
-      setIsCreating(false)
-    }
+    //   const chainData = {
+    //     ...newChain,
+    //     id: Date.now(),
+    //     creator: auth.walletAddress || 'Anonymous',
+    //     rating: 0,
+    //     uses: 0,
+    //     price: "0.00",
+    //     isPublic: false
+    //   }
+
+    //   setMyChains(prev => [...prev, chainData])
+
+    //   // Reset form
+    //   setNewChain({
+    //     title: '',
+    //     description: '',
+    //     prompts: [{ id: 1, content: '', order: 1 }]
+    //   })
+
+    //   alert("Chain created successfully!")
+    // } catch (error) {
+    //   console.error("Error creating chain:", error)
+    //   alert("Failed to create chain. Please try again.")
+    // } finally {
+    //   setIsCreating(false)
+    // }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {/* Navigation */}
-      <nav className="border-b border-purple-500/20 bg-black/20 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <Sparkles className="h-8 w-8 text-yellow-400" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-400 bg-clip-text text-transparent">
-                PromptVerse
-              </span>
-            </Link>
-            
-            <div className="hidden md:flex items-center space-x-6">
-              <Link href="/marketplace" className="text-white hover:text-yellow-400 transition-colors">
-                Marketplace
-              </Link>
-              <Link href="/create" className="text-white hover:text-yellow-400 transition-colors">
-                Create
-              </Link>
-              <Link href="/chains" className="text-yellow-400 font-semibold">
-                Chains
-              </Link>
-              <Link href="/bounties" className="text-white hover:text-yellow-400 transition-colors">
-                Bounties
-              </Link>
-              <Link href="/dao" className="text-white hover:text-yellow-400 transition-colors">
-                DAO
-              </Link>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <CampModal />
-              {authenticated && (
-                <Link href="/dashboard">
-                  <Button variant="outline" className="border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black">
-                    Dashboard
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
@@ -309,7 +271,7 @@ function ChainsPage() {
                           </Badge>
                         ))}
                       </div>
-                      
+
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center space-x-4">
                           <div className="flex items-center space-x-1">
@@ -328,7 +290,7 @@ function ChainsPage() {
                         <div className="text-sm text-gray-400">
                           by <span className="text-blue-400 font-semibold">{chain.creator}</span>
                         </div>
-                        <Button className="bg-gradient-to-r from-blue-400 to-purple-400 hover:from-blue-500 hover:to-purple-500 text-white font-semibold">
+                        <Button onClick={()=> setModalType("maintenance")} className="bg-gradient-to-r from-blue-400 to-purple-400 hover:from-blue-500 hover:to-purple-500 text-white font-semibold">
                           <Play className="mr-2 h-4 w-4" />
                           Start Chain
                         </Button>
@@ -485,7 +447,7 @@ function ChainsPage() {
                             {newChain.description || 'Your chain description will appear here...'}
                           </p>
                         </div>
-                        
+
                         <div className="space-y-2">
                           <div className="text-white font-semibold text-sm">Steps ({newChain.prompts.length})</div>
                           {newChain.prompts.map((prompt, index) => (
@@ -502,7 +464,7 @@ function ChainsPage() {
 
                         <div className="flex justify-between items-center pt-4 border-t border-gray-600">
                           <div className="text-gray-400 text-sm">
-                            by {user?.username || 'You'}
+                            by {auth.walletAddress || 'You'}
                           </div>
                           <div className="text-blue-400 font-bold">
                             Free
@@ -598,7 +560,7 @@ function ChainsPage() {
                           </Badge>
                         ))}
                       </div>
-                      
+
                       <div className="flex items-center justify-between mb-4">
                         <div className="text-sm text-gray-400">
                           {chain.prompts.length} steps
@@ -632,21 +594,34 @@ function ChainsPage() {
             )}
           </TabsContent>
         </Tabs>
+
+
+        <StatusModal
+          isOpen={!!modalType}
+          type={modalType || "success"}
+          title={
+            modalType === "success"
+              ? "Success!"
+              : modalType === "error"
+                ? "Error!"
+                : modalType === "warning"
+                  ? "Insufficient Funds"
+                  : "System Maintenance"
+          }
+          message={
+            modalType === "success"
+              ? "Your prompt was created successfully."
+              : modalType === "error"
+                ? "Something went wrong. Please try again."
+                : modalType === "warning"
+                  ? "You do not have enough balance to complete this transaction."
+                  : "The system is currently undergoing maintenance. Please check back later."
+          }
+          onClose={() => setModalType(null)}
+        />
       </div>
     </div>
   )
 }
 
-export default function Chains() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <CampProvider 
-        clientId={process.env.NEXT_PUBLIC_CAMP_CLIENT_ID || "your-client-id"}
-        redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
-        environment="production"
-      >
-        <ChainsPage />
-      </CampProvider>
-    </QueryClientProvider>
-  )
-}
+

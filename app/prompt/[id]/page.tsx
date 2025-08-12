@@ -1,22 +1,24 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Separator } from "@/components/ui/separator"
+import { Button } from '../../../components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card"
+import { Badge } from "../../../components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "../../../components/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../../components/ui/tabs"
+import { Separator } from "../../../components/ui/separator"
 import { Star, Heart, Share2, Download, Eye, DollarSign, Clock, Shield, Users, Zap, Copy, ExternalLink, Flag, MessageCircle, ThumbsUp, ChevronLeft, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { CampProvider, CampModal, useAuthState, useAuth } from '@campnetwork/origin/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import Navbar from '../../../components/navbar'
+import { StatusModal } from '../../../components/modal'
 
-const queryClient = new QueryClient()
 
-function PromptDetailPage() {
-  const { authenticated, user } = useAuthState()
+
+export default function PromptDetailPage() {
+  const { authenticated } = useAuthState()
   const auth = useAuth()
   const params = useParams()
   const [promptData, setPromptData] = useState(null)
@@ -26,20 +28,22 @@ function PromptDetailPage() {
   const [isPurchasing, setIsPurchasing] = useState(false)
   const [hasAccess, setHasAccess] = useState(false)
   const [reviews, setReviews] = useState([])
+  const [modalType, setModalType] = useState<null | "success" | "error" | "warning" | "maintenance">(null);
 
   useEffect(() => {
     const fetchPromptData = async () => {
       try {
         if (auth.origin && params.id) {
           // Fetch token data from Camp Network
-          const tokenId = BigInt(params.id)
-          const tokenData = await auth.origin.getToken(tokenId)
-          
-          // Check if user has access
-          if (authenticated && user?.address) {
-            const access = await auth.origin.hasAccess(tokenId, user.address)
-            setHasAccess(access)
-          }
+          const tokenId = BigInt(params.id as string)
+          const tokenData = await auth.origin.getData(tokenId)
+        
+
+          // // Check if user has access
+          // if (authenticated && auth.walletAddress) {
+          //   const access = await auth.origin.hasAccess(auth.origin, auth.walletAddress, tokenId)
+          //   setHasAccess(access)
+          // }
 
           // Process token data
           const processedData = {
@@ -127,7 +131,7 @@ function PromptDetailPage() {
     }
 
     fetchPromptData()
-  }, [auth.origin, params.id, authenticated, user])
+  }, [auth.origin, params.id, authenticated,])
 
   const handlePurchase = async () => {
     if (!authenticated) {
@@ -139,13 +143,16 @@ function PromptDetailPage() {
 
     setIsPurchasing(true)
     try {
-      const tokenId = BigInt(promptData.id)
-      const periods = 1 // Buy access for 1 period
-      
-      await auth.origin.buyAccessSmart(tokenId, periods)
-      
-      alert("Purchase successful! You now have access to this prompt.")
-      setHasAccess(true)
+
+      setModalType("maintenance")
+
+      // const tokenId = BigInt(promptData.id)
+      // const periods = 1 // Buy access for 1 period
+
+      // await auth.origin.buyAccessSmart(tokenId, periods)
+
+      // alert("Purchase successful! You now have access to this prompt.")
+      // setHasAccess(true)
     } catch (error) {
       console.error("Purchase failed:", error)
       alert("Purchase failed. Please try again.")
@@ -210,47 +217,8 @@ function PromptDetailPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {/* Navigation */}
-      <nav className="border-b border-purple-500/20 bg-black/20 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <Sparkles className="h-8 w-8 text-yellow-400" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-400 bg-clip-text text-transparent">
-                PromptVerse
-              </span>
-            </Link>
-            
-            <div className="hidden md:flex items-center space-x-6">
-              <Link href="/marketplace" className="text-white hover:text-yellow-400 transition-colors">
-                Marketplace
-              </Link>
-              <Link href="/create" className="text-white hover:text-yellow-400 transition-colors">
-                Create
-              </Link>
-              <Link href="/chains" className="text-white hover:text-yellow-400 transition-colors">
-                Chains
-              </Link>
-              <Link href="/bounties" className="text-white hover:text-yellow-400 transition-colors">
-                Bounties
-              </Link>
-              <Link href="/dao" className="text-white hover:text-yellow-400 transition-colors">
-                DAO
-              </Link>
-            </div>
 
-            <div className="flex items-center space-x-4">
-              <CampModal />
-              {authenticated && (
-                <Link href="/dashboard">
-                  <Button variant="outline" className="border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black">
-                    Dashboard
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <div className="container mx-auto px-4 py-8">
         {/* Back Button */}
@@ -276,9 +244,8 @@ function PromptDetailPage() {
                       <button
                         key={index}
                         onClick={() => setSelectedImage(index)}
-                        className={`relative rounded-lg overflow-hidden ${
-                          selectedImage === index ? 'ring-2 ring-yellow-400' : ''
-                        }`}
+                        className={`relative rounded-lg overflow-hidden ${selectedImage === index ? 'ring-2 ring-yellow-400' : ''
+                          }`}
                       >
                         <img
                           src={image || "/placeholder.svg"}
@@ -311,9 +278,9 @@ function PromptDetailPage() {
                     >
                       <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
                     </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={handleShare}
                       className="border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-white"
                     >
@@ -482,9 +449,8 @@ function PromptDetailPage() {
                                   {[...Array(5)].map((_, i) => (
                                     <Star
                                       key={i}
-                                      className={`h-4 w-4 ${
-                                        i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-600'
-                                      }`}
+                                      className={`h-4 w-4 ${i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-600'
+                                        }`}
                                     />
                                   ))}
                                 </div>
@@ -633,7 +599,7 @@ function PromptDetailPage() {
                         </>
                       )}
                     </Button>
-                    
+
                     {!authenticated && (
                       <p className="text-center text-gray-400 text-sm">
                         Connect your wallet to purchase
@@ -712,6 +678,31 @@ function PromptDetailPage() {
                 </Button>
               </CardContent>
             </Card>
+
+
+            <StatusModal
+              isOpen={!!modalType}
+              type={modalType || "success"}
+              title={
+                modalType === "success"
+                  ? "Success!"
+                  : modalType === "error"
+                    ? "Error!"
+                    : modalType === "warning"
+                      ? "Insufficient Funds"
+                      : "System Maintenance"
+              }
+              message={
+                modalType === "success"
+                  ? "Your prompt was created successfully."
+                  : modalType === "error"
+                    ? "Something went wrong. Please try again."
+                    : modalType === "warning"
+                      ? "You do not have enough balance to complete this transaction."
+                      : "The system is currently undergoing maintenance. Please check back later."
+              }
+              onClose={() => setModalType(null)}
+            />
           </div>
         </div>
       </div>
@@ -719,16 +710,3 @@ function PromptDetailPage() {
   )
 }
 
-export default function PromptDetail() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <CampProvider 
-        clientId={process.env.NEXT_PUBLIC_CAMP_CLIENT_ID || "your-client-id"}
-        redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
-        environment="production"
-      >
-        <PromptDetailPage />
-      </CampProvider>
-    </QueryClientProvider>
-  )
-}

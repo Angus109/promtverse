@@ -2,17 +2,20 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from "../../components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card"
+import { Card, CardContent, CardHeader, } from "../../components/ui/card"
 import { Badge } from "../../components/ui/badge"
 import { Input } from "../../components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar"
-import { Search, Users, Star, TrendingUp, Award, Sparkles, Shield } from 'lucide-react'
+import { Search, Users, Star, Award,  Shield } from 'lucide-react'
 import Link from 'next/link'
-import { CampProvider, CampModal, useAuthState, useAuth } from '@campnetwork/origin/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import {useAuthState, useAuth } from '@campnetwork/origin/react'
 
-const queryClient = new QueryClient()
+import Navbar from '../../components/navbar'
+import { ethers, JsonRpcProvider, } from "ethers"; // Note the imports
+import PromptMarketplaceABI from './../../abi.json'
+// import { structureCreators } from '../../lib/types'
+
 
 const sortOptions = [
   { value: "followers", label: "Most Followers" },
@@ -22,7 +25,21 @@ const sortOptions = [
   { value: "newest", label: "Newest" }
 ]
 
-function CreatorsPage() {
+const CAMP_RPC_URL = 'https://rpc.campnetwork.xyz'
+const CONTRACT_ADDRESS = '0xb9504d2b36f9cf828ab883dda5622bb5530bc861' // Your contract address on Camp Network
+
+
+let ethereum: any
+let tx: any
+
+if (typeof window !== 'undefined') {
+  ethereum = (window as any).ethereum
+}
+
+
+
+
+export default function CreatorsPage() {
   const { authenticated } = useAuthState()
   const auth = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
@@ -31,126 +48,161 @@ function CreatorsPage() {
   const [filteredCreators, setFilteredCreators] = useState([])
   const [loading, setLoading] = useState(true)
 
+
+
+  const getContract = async () => {
+    try {
+      if (!auth.walletAddress) {
+        throw new Error("Wallet not connected");
+      }
+
+      const provider = auth.walletAddress ? new ethers.BrowserProvider(ethereum) : new JsonRpcProvider(CAMP_RPC_URL);
+      const signer = await provider.getSigner(auth.walletAddress ? undefined : auth.walletAddress);
+
+      return new ethers.Contract(
+        CONTRACT_ADDRESS,
+        PromptMarketplaceABI,
+        signer
+      );
+    } catch (error) {
+      console.error("Failed to initialize contract:", error);
+      throw error;
+    }
+  };
+
+
   useEffect(() => {
     const fetchCreators = async () => {
-      try {
-        if (auth.origin) {
-          // Fetch all tokens to get unique creators
-          const tokensResponse = await auth.origin.getAllTokens()
-          const uniqueCreators = [...new Set(tokensResponse.map(token => token.creator))]
-          
-          // Process creator data
-          const processedCreators = await Promise.all(
-            uniqueCreators.map(async (creatorAddress, index) => {
-              const creatorTokens = tokensResponse.filter(token => token.creator === creatorAddress)
-              const totalEarnings = creatorTokens.reduce((sum, token) => {
-                return sum + (parseFloat(token.price || "0") / 1e18)
-              }, 0)
+      // try {
+      //   if (auth.origin) {
+      //     const contract = await getContract()
+      //     const tx = await contract.getAllPromtsWithDetails()
+      //     const creatorResponse = structureCreators(tx)
 
-              return {
-                id: creatorAddress,
-                username: `Creator${index + 1}`,
-                address: creatorAddress,
-                avatar: `/placeholder.svg?height=80&width=80&query=creator ${index + 1}`,
-                verified: Math.random() > 0.7,
-                followers: Math.floor(Math.random() * 5000) + 100,
-                prompts: creatorTokens.length,
-                earnings: totalEarnings.toFixed(3),
-                rating: 4.0 + Math.random() * 1.0,
-                totalSales: creatorTokens.reduce((sum, token) => sum + Math.floor(Math.random() * 100) + 10, 0),
-                joinedDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-                specialties: ["AI Art", "Character Design", "Prompts"][Math.floor(Math.random() * 3)],
-                bio: `Passionate AI prompt creator specializing in ${["digital art", "character design", "creative writing"][Math.floor(Math.random() * 3)]}.`
-              }
-            })
-          )
+      //     const processedCreators = creatorResponse.slice(0, 6).map((token, index) => ({
+      //       id: token.id,
+      //       username: `Creator${index + 1}`,
+      //       address: token.creatorAddress,
+      //       avatar: token.avatarUri || `/placeholder.svg?height=80&width=80&query=creator ${index + 1}`,
+      //       verified: Math.random() > 0.7,
+      //       followers: Math.floor(Math.random() * 5000) + 100,
+      //       prompts: token.promptCount,
+      //       earnings: token.totalEarnings.toFixed(3),
+      //       rating: 4.0 + Math.random() * 1.0,
+      //       totalSales: token.totalSales || Math.floor(Math.random() * 100) + 10,
+      //       joinedDate: token.joinedDate || new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
+      //       specialties: token.specialties || ["AI Art", "Character Design", "Prompts"][Math.floor(Math.random() * 3)],
+      //       bio: token.bio || `Passionate AI prompt creator specializing in ${["digital art", "character design", "creative writing"][Math.floor(Math.random() * 3)]}.`
+      //     }))
 
-          setCreators(processedCreators)
-        }
-      } catch (error) {
-        console.error("Error fetching creators:", error)
-        setCreators([])
-      } finally {
-        setLoading(false)
-      }
+      //     setCreators(processedCreators)
+      //   }
+      // } catch (error) {
+      //   console.error("Error fetching creators:", error)
+        let creatorCount = 1
+        setCreators([[
+          {
+            id: creatorCount++,
+            username: "MangaMaster",
+            prompts: 45,
+            earnings: "12.5",
+            avatar: "/placeholder.svg?height=60&width=60",
+            rating: 4.0 + Math.random() * 1.0,
+            joinedDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
+            bio: `Passionate AI prompt creator specializing in ${["digital art", "character design", "creative writing"][Math.floor(Math.random() * 3)]}.`,
+            specialties: ["AI Art", "Character Design", "Prompts"][Math.floor(Math.random() * 3)],
+            verified: Math.random() > 0.7,
+            followers: Math.floor(Math.random() * 5000) + 100,
+            address: 0x0000000000000000000000000000000000000000000,
+            totalSales: Math.floor(Math.random() * 100) + 10,
+          },
+
+
+          {
+            username: "NeonDreamer",
+            prompts: 32,
+            earnings: "8.9",
+            avatar: "/placeholder.svg?height=60&width=60",
+            rating: 4.0 + Math.random() * 1.0,
+            joinedDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
+            bio: `Passionate AI prompt creator specializing in ${["digital art", "character design", "creative writing"][Math.floor(Math.random() * 3)]}.`,
+            specialties: ["AI Art", "Character Design", "Prompts"][Math.floor(Math.random() * 3)],
+            verified: Math.random() > 0.7,
+            followers: Math.floor(Math.random() * 5000) + 100,
+            address: 0x0000000000000000000000000000000000000000000,
+            totalSales: Math.floor(Math.random() * 100) + 10,
+          },
+          {
+           username: "SpellWeaver",
+            prompts: 67,
+            earnings: "15.2",
+            avatar: "/placeholder.svg?height=60&width=60",
+            rating: 4.0 + Math.random() * 1.0,
+            joinedDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
+            bio: `Passionate AI prompt creator specializing in ${["digital art", "character design", "creative writing"][Math.floor(Math.random() * 3)]}.`,
+            specialties: ["AI Art", "Character Design", "Prompts"][Math.floor(Math.random() * 3)],
+            verified: Math.random() > 0.7,
+            followers: Math.floor(Math.random() * 5000) + 100,
+            address: 0x0000000000000000000000000000000000000000000,
+            totalSales: Math.floor(Math.random() * 100) + 10,
+          }
+        ]])
+      // } finally {
+      //   setLoading(false)
+      // }
     }
 
     fetchCreators()
+    setLoading(false)
   }, [auth.origin])
 
+
   // Filter and sort creators
-  useEffect(() => {
-    let filtered = creators.filter(creator =>
-      creator.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      creator.bio.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      creator.specialties.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+useEffect(() => {
+  // Flatten creators in case of accidental nested arrays
+  const flatCreators = Array.isArray(creators[0]) ? creators.flat() : creators;
 
-    // Sort creators
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "followers":
-          return b.followers - a.followers
-        case "prompts":
-          return b.prompts - a.prompts
-        case "earnings":
-          return parseFloat(b.earnings) - parseFloat(a.earnings)
-        case "rating":
-          return b.rating - a.rating
-        case "newest":
-          return new Date(b.joinedDate).getTime() - new Date(a.joinedDate).getTime()
-        default:
-          return b.followers - a.followers
-      }
-    })
+  let filtered = flatCreators.filter(creator => {
+    const username = creator?.username?.toString().toLowerCase() || "";
+    const bio = creator?.bio?.toString().toLowerCase() || "";
+    const specialties = Array.isArray(creator?.specialties)
+      ? creator.specialties.join(" ").toLowerCase()
+      : creator?.specialties?.toString().toLowerCase() || "";
 
-    setFilteredCreators(filtered)
-  }, [creators, searchQuery, sortBy])
+    return (
+      username.includes(searchQuery.toLowerCase()) ||
+      bio.includes(searchQuery.toLowerCase()) ||
+      specialties.includes(searchQuery.toLowerCase())
+    );
+  });
+
+  // Sort creators
+  filtered.sort((a, b) => {
+    switch (sortBy) {
+      case "followers":
+        return b.followers - a.followers;
+      case "prompts":
+        return b.prompts - a.prompts;
+      case "earnings":
+        return parseFloat(b.earnings) - parseFloat(a.earnings);
+      case "rating":
+        return b.rating - a.rating;
+      case "newest":
+        return new Date(b.joinedDate).getTime() - new Date(a.joinedDate).getTime();
+      default:
+        return b.followers - a.followers;
+    }
+  });
+
+  setFilteredCreators(filtered);
+}, [creators, searchQuery, sortBy]);
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {/* Navigation */}
-      <nav className="border-b border-purple-500/20 bg-black/20 backdrop-blur-md">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <Sparkles className="h-8 w-8 text-yellow-400" />
-              <span className="text-2xl font-bold bg-gradient-to-r from-yellow-400 to-pink-400 bg-clip-text text-transparent">
-                PromptVerse
-              </span>
-            </Link>
-            
-            <div className="hidden md:flex items-center space-x-6">
-              <Link href="/marketplace" className="text-white hover:text-yellow-400 transition-colors">
-                Marketplace
-              </Link>
-              <Link href="/create" className="text-white hover:text-yellow-400 transition-colors">
-                Create
-              </Link>
-              <Link href="/chains" className="text-white hover:text-yellow-400 transition-colors">
-                Chains
-              </Link>
-              <Link href="/bounties" className="text-white hover:text-yellow-400 transition-colors">
-                Bounties
-              </Link>
-              <Link href="/dao" className="text-white hover:text-yellow-400 transition-colors">
-                DAO
-              </Link>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <CampModal />
-              {authenticated && (
-                <Link href="/dashboard">
-                  <Button variant="outline" className="border-yellow-400 text-yellow-400 hover:bg-yellow-400 hover:text-black">
-                    Dashboard
-                  </Button>
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
@@ -246,7 +298,7 @@ function CreatorsPage() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-gray-300 text-sm mb-4 line-clamp-2">{creator.bio}</p>
-                    
+
                     <div className="grid grid-cols-2 gap-4 mb-4">
                       <div className="text-center">
                         <div className="text-2xl font-bold text-pink-400">{creator.followers}</div>
@@ -286,9 +338,9 @@ function CreatorsPage() {
               <div className="text-center py-12">
                 <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <div className="text-gray-400 text-lg mb-4">No creators found matching your search</div>
-                <Button 
+                <Button
                   onClick={() => setSearchQuery("")}
-                  variant="outline" 
+                  variant="outline"
                   className="border-purple-400 text-purple-400 hover:bg-purple-400 hover:text-white"
                 >
                   Clear Search
@@ -359,16 +411,3 @@ function CreatorsPage() {
   )
 }
 
-export default function Creators() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <CampProvider 
-        clientId={process.env.NEXT_PUBLIC_CAMP_CLIENT_ID || "your-client-id"}
-        redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
-        environment="production"
-      >
-        <CreatorsPage />
-      </CampProvider>
-    </QueryClientProvider>
-  )
-}

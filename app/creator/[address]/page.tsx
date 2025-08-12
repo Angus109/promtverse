@@ -13,6 +13,9 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { CampProvider, CampModal, useAuthState, useAuth } from '@campnetwork/origin/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ethers, JsonRpcProvider, } from "ethers"; // Note the imports
+import PromptMarketplaceABI from './../../../abi.json'
+import { structureCreatorDetails, structurePromptDetails } from '../../../lib/types'
 
 const queryClient = new QueryClient()
 
@@ -24,7 +27,20 @@ const sortOptions = [
   { value: "popular", label: "Most Popular" }
 ]
 
-function CreatorProfilePage() {
+
+
+const CAMP_RPC_URL = 'https://rpc.campnetwork.xyz'
+const CONTRACT_ADDRESS = '0xb9504d2b36f9cf828ab883dda5622bb5530bc861' // Your contract address on Camp Network
+
+
+let ethereum: any
+let tx: any
+
+if (typeof window !== 'undefined') {
+  ethereum = (window as any).ethereum
+}
+
+export default function CreatorProfilePage() {
   const { authenticated } = useAuthState()
   const auth = useAuth()
   const params = useParams()
@@ -38,75 +54,183 @@ function CreatorProfilePage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [showFilters, setShowFilters] = useState(false)
 
+
+  const getContract = async () => {
+    try {
+      if (!auth.walletAddress) {
+        throw new Error("Wallet not connected");
+      }
+
+      const provider = auth.walletAddress ? new ethers.BrowserProvider(ethereum) : new JsonRpcProvider(CAMP_RPC_URL);
+      const signer = await provider.getSigner(auth.walletAddress ? undefined : auth.walletAddress);
+
+      return new ethers.Contract(
+        CONTRACT_ADDRESS,
+        PromptMarketplaceABI,
+        signer
+      );
+    } catch (error) {
+      console.error("Failed to initialize contract:", error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     const fetchCreatorData = async () => {
-      try {
-        if (auth.origin && params.address) {
-          // Fetch all tokens by this creator
-          const allTokens = await auth.origin.getAllTokens()
-          const creatorTokens = allTokens.filter(token => 
-            token.creator?.toLowerCase() === params.address.toLowerCase()
-          )
+      // try {
 
-          // Process creator data
-          const totalEarnings = creatorTokens.reduce((sum, token) => {
-            return sum + (parseFloat(token.price || "0") / 1e18)
-          }, 0)
 
-          const totalSales = creatorTokens.reduce((sum, token) => {
-            return sum + Math.floor(Math.random() * 100) + 10
-          }, 0)
+      //   const contract = await getContract()
+      //   const tx = await contract.getSpecificCreator()
+      //   const creatorResponse = structureCreatorDetails(tx)
 
-          const processedCreator = {
-            address: params.address,
-            username: `Creator_${params.address.slice(-6)}`,
-            displayName: `AI Prompt Master`,
-            avatar: `/placeholder.svg?height=120&width=120&query=creator profile`,
-            coverImage: `/placeholder.svg?height=300&width=800&query=creator cover`,
-            verified: true,
-            followers: Math.floor(Math.random() * 10000) + 500,
-            following: Math.floor(Math.random() * 500) + 50,
-            prompts: creatorTokens.length,
-            earnings: totalEarnings.toFixed(3),
-            totalSales,
-            rating: 4.2 + Math.random() * 0.8,
-            joinedDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
-            location: "Digital Realm",
-            website: "https://example.com",
-            bio: "Passionate AI prompt engineer creating innovative solutions for digital artists and content creators. Specializing in character design, environmental art, and creative writing prompts.",
-            specialties: ["Character Design", "Environmental Art", "Creative Writing", "Digital Art"],
-            achievements: [
-              { title: "Top Creator", description: "Ranked in top 10 creators this month" },
-              { title: "Verified Artist", description: "Verified for quality and authenticity" },
-              { title: "Community Favorite", description: "Highly rated by the community" }
-            ]
-          }
+      //   setCreatorData(creatorResponse)
+      // } catch (error) {
 
-          setCreatorData(processedCreator)
-
-          // Process creator's prompts
-          const processedPrompts = creatorTokens.map((token, index) => ({
-            id: token.tokenId.toString(),
-            title: token.metadata?.name || `AI Prompt #${token.tokenId}`,
-            description: token.metadata?.description || "Premium AI prompt for creative projects",
-            price: (parseFloat(token.price || "0.05") / 1e18).toFixed(3),
-            tags: token.metadata?.tags || ["ai", "prompt", "creative"],
-            rating: 4.0 + Math.random() * 1.0,
-            sales: Math.floor(Math.random() * 500) + 50,
-            views: Math.floor(Math.random() * 2000) + 500,
-            category: token.metadata?.category || "Art & Design",
-            createdAt: token.createdAt || new Date().toISOString(),
-            image: token.metadata?.image || `/placeholder.svg?height=200&width=300&query=prompt ${index + 1}`,
-            featured: Math.random() > 0.8
-          }))
-
-          setCreatorPrompts(processedPrompts)
+        // console.error("Error fetching creator data:", error)
+        const processedCreator = {
+          address: params.address,
+          username: `Creator_${params.address.slice(-6)}`,
+          displayName: `AI Prompt Master`,
+          avatar: `/placeholder.svg?height=120&width=120&query=creator profile`,
+          coverImage: `/placeholder.svg?height=300&width=800&query=creator cover`,
+          verified: true,
+          followers: Math.floor(Math.random() * 10000) + 500,
+          following: Math.floor(Math.random() * 500) + 50,
+          prompts: 45,
+          earnings: (Math.floor(Math.random() * 100) + 10).toFixed(3),
+          totalSales: Math.floor(Math.random() * 100) + 10,
+          rating: 4.2 + Math.random() * 0.8,
+          joinedDate: new Date(Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000).toISOString(),
+          location: "Digital Realm",
+          website: "https://example.com",
+          bio: "Passionate AI prompt engineer creating innovative solutions for digital artists and content creators. Specializing in character design, environmental art, and creative writing prompts.",
+          specialties: ["Character Design", "Environmental Art", "Creative Writing", "Digital Art"],
+          achievements: [
+            { title: "Top Creator", description: "Ranked in top 10 creators this month" },
+            { title: "Verified Artist", description: "Verified for quality and authenticity" },
+            { title: "Community Favorite", description: "Highly rated by the community" }
+          ]
         }
-      } catch (error) {
-        console.error("Error fetching creator data:", error)
-      } finally {
-        setLoading(false)
-      }
+
+        setCreatorData(processedCreator)
+
+
+      // }
+
+
+
+      // try {
+      //   if (auth.origin && params.address) {
+      //     // Fetch all tokens by this creator
+
+      //     const contract = await getContract()
+      //     const tx = await contract.getAllPromtsWithDetails()
+      //     const promtResponse = structurePromptDetails(tx)
+
+      //     setCreatorPrompts(promtResponse)
+
+      //   }
+      // } catch (error) {
+
+        // Process creator's prompts
+        const processedPrompts = [{
+
+          id: 1,
+          title: "Anime Character Creator Pro",
+          description: "Generate stunning anime characters with detailed backgrounds and unique personalities. Perfect for manga artists and game developers.",
+          price: "0.05",
+          creator: "MangaMaster",
+          tags: ["anime", "character", "art", "manga"],
+          rating: 4.9,
+          sales: 1250,
+          category: "Art & Design",
+          aiModel: "Midjourney",
+          createdAt: "2024-01-15",
+          image: "/placeholder.svg?height=200&width=300",
+          featured: Math.random() > 0.8
+        },
+        {
+          id: 2,
+          title: "Cyberpunk City Builder",
+          description: "Create futuristic cyberpunk cityscapes with neon lights and flying cars. Ideal for sci-fi projects.",
+          price: "0.08",
+          creator: "NeonDreamer",
+          tags: ["cyberpunk", "city", "futuristic", "neon"],
+          rating: 4.8,
+          sales: 890,
+          category: "Environment",
+          aiModel: "DALL-E 3",
+          createdAt: "2024-01-10",
+          image: "/placeholder.svg?height=200&width=300",
+          featured: Math.random() > 0.8
+        },
+        {
+          id: 3,
+          title: "Magical Spell Descriptions",
+          description: "Generate detailed magical spell descriptions for fantasy RPGs and stories. Includes effects and lore.",
+          price: "0.03",
+          creator: "SpellWeaver",
+          tags: ["magic", "fantasy", "rpg", "spells"],
+          rating: 4.7,
+          sales: 2100,
+          category: "Writing",
+          aiModel: "GPT-4",
+          createdAt: "2024-01-20",
+          image: "/placeholder.svg?height=200&width=300",
+          featured: Math.random() > 0.8
+        },
+        {
+          id: 4,
+          title: "Mecha Robot Designer",
+          description: "Design powerful mecha robots with intricate details and weaponry. Perfect for anime and gaming projects.",
+          price: "0.12",
+          creator: "RobotMaster",
+          tags: ["mecha", "robot", "anime", "sci-fi"],
+          rating: 4.9,
+          sales: 650,
+          category: "Art & Design",
+          aiModel: "Midjourney",
+          createdAt: "2024-01-08",
+          image: "/placeholder.svg?height=200&width=300",
+          featured: Math.random() > 0.8
+        },
+        {
+          id: 5,
+          title: "Fantasy Landscape Generator",
+          description: "Create breathtaking fantasy landscapes with mystical elements and magical atmospheres.",
+          price: "0.06",
+          creator: "LandscapeMage",
+          tags: ["fantasy", "landscape", "nature", "magic"],
+          rating: 4.6,
+          sales: 1100,
+          category: "Environment",
+          aiModel: "Stable Diffusion",
+          createdAt: "2024-01-12",
+          image: "/placeholder.svg?height=200&width=300",
+          featured: Math.random() > 0.8
+        },
+        {
+          id: 6,
+          title: "Dialogue System Creator",
+          description: "Generate engaging dialogue for NPCs and characters in games and interactive stories.",
+          price: "0.04",
+          creator: "DialogueCraft",
+          tags: ["dialogue", "npc", "game", "story"],
+          rating: 4.5,
+          sales: 800,
+          category: "Writing",
+          aiModel: "Claude",
+          createdAt: "2024-01-18",
+          image: "/placeholder.svg?height=200&width=300",
+          featured: Math.random() > 0.8
+        }
+        ]
+        setCreatorPrompts(processedPrompts)
+
+      // } finally {
+      //   setLoading(false)
+      // }
     }
 
     fetchCreatorData()
@@ -204,7 +328,7 @@ function CreatorProfilePage() {
                 PromptVerse
               </span>
             </Link>
-            
+
             <div className="hidden md:flex items-center space-x-6">
               <Link href="/marketplace" className="text-white hover:text-yellow-400 transition-colors">
                 Marketplace
@@ -264,7 +388,7 @@ function CreatorProfilePage() {
                 <AvatarImage src={creatorData.avatar || "/placeholder.svg"} alt={creatorData.username} />
                 <AvatarFallback className="text-2xl">{creatorData.username.slice(0, 2)}</AvatarFallback>
               </Avatar>
-              
+
               <div className="flex-1">
                 <div className="flex items-center space-x-3 mb-2">
                   <h1 className="text-3xl font-bold text-white">{creatorData.displayName}</h1>
@@ -277,7 +401,7 @@ function CreatorProfilePage() {
                 </div>
                 <p className="text-gray-400 mb-2">@{creatorData.username}</p>
                 <p className="text-gray-300 mb-4 max-w-2xl">{creatorData.bio}</p>
-                
+
                 <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-4">
                   <div className="flex items-center space-x-1">
                     <Calendar className="h-4 w-4" />
@@ -307,11 +431,10 @@ function CreatorProfilePage() {
               <div className="flex flex-col space-y-3">
                 <Button
                   onClick={handleFollow}
-                  className={`${
-                    isFollowing
-                      ? 'bg-gray-600 hover:bg-gray-700 text-white'
-                      : 'bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white'
-                  } font-semibold px-6`}
+                  className={`${isFollowing
+                    ? 'bg-gray-600 hover:bg-gray-700 text-white'
+                    : 'bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white'
+                    } font-semibold px-6`}
                 >
                   <Users className="mr-2 h-4 w-4" />
                   {isFollowing ? 'Following' : 'Follow'}
@@ -320,9 +443,9 @@ function CreatorProfilePage() {
                   <Button variant="outline" size="sm" className="border-blue-400 text-blue-400 hover:bg-blue-400 hover:text-white">
                     <MessageCircle className="h-4 w-4" />
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={handleShare}
                     className="border-green-400 text-green-400 hover:bg-green-400 hover:text-white"
                   >
@@ -459,7 +582,7 @@ function CreatorProfilePage() {
                           </Badge>
                         ))}
                       </div>
-                      
+
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center space-x-2">
                           <Star className="h-4 w-4 text-yellow-400 fill-current" />
@@ -502,7 +625,7 @@ function CreatorProfilePage() {
                             </div>
                             <div className="text-2xl font-bold text-yellow-400">{prompt.price} ETH</div>
                           </div>
-                          
+
                           <div className="flex flex-wrap gap-2 mb-3">
                             {prompt.tags.map((tag) => (
                               <Badge key={tag} variant="secondary" className="bg-purple-600/30 text-purple-200">
@@ -538,9 +661,9 @@ function CreatorProfilePage() {
             {filteredPrompts.length === 0 && (
               <div className="text-center py-12">
                 <div className="text-gray-400 text-lg mb-4">No prompts found</div>
-                <Button 
+                <Button
                   onClick={() => setSearchQuery("")}
-                  variant="outline" 
+                  variant="outline"
                   className="border-purple-400 text-purple-400 hover:bg-purple-400 hover:text-white"
                 >
                   Clear Search
@@ -573,7 +696,7 @@ function CreatorProfilePage() {
                   <h4 className="text-white font-semibold mb-2">Bio</h4>
                   <p className="text-gray-300">{creatorData.bio}</p>
                 </div>
-                
+
                 <div>
                   <h4 className="text-white font-semibold mb-2">Specialties</h4>
                   <div className="flex flex-wrap gap-2">
@@ -629,16 +752,3 @@ function CreatorProfilePage() {
   )
 }
 
-export default function CreatorProfile() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <CampProvider 
-        clientId={process.env.NEXT_PUBLIC_CAMP_CLIENT_ID || "your-client-id"}
-        redirectUri={typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}
-        environment="production"
-      >
-        <CreatorProfilePage />
-      </CampProvider>
-    </QueryClientProvider>
-  )
-}
